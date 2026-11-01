@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+        消除原生顶部白条：
+        parent 用 Theme.DeviceDefault.NoActionBar —— 平台自带的 NoActionBar 变体，
+        它本身已包含 windowActionBar=false / windowNoTitle=true，不必重复声明。
+    -->
+    <style name="Theme.PaperLite" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+        <!-- 状态栏 / 导航栏透明，交给 edge-to-edge -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:enforceStatusBarContrast">false</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+
+        <!-- 背景色与 Compose 侧一致，避免启动瞬间闪白 -->
+        <item name="android:windowBackground">@color/boot_background</item>
+        <item name="android:colorBackground">@color/boot_background</item>
+    </style>
+
+</resources>

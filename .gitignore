@@ -1,0 +1,30 @@
+# ---- 构建产物 ----
+PaperLite/build/
+PaperLite/app/build/
+PaperLite/.gradle/
+PaperLite/.kotlin/
+PaperLite/local.properties
+PaperLite/libs/
+PaperLite/PaperLite-debug.apk
+PaperLiteG1/build/
+PaperLiteG1/app/build/
+PaperLiteG1/.gradle/
+PaperLiteG1/.kotlin/
+PaperLiteG1/local.properties
+website/.workbuddy/
+**/.workbuddy/
+
+# ---- 无关的旧项目 / 临时文件 ----
+PaperLiteG1/
+report_review.py
+综合报告-*.md
+
+# ---- IDE ----
+.idea/
+*.iml
+.vscode/
+
+# ---- 系统 ----
+.DS_Store
+Thumbs.db
+*.log

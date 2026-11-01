@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PaperLite — 面向个人设备的系统能力工具</title>
+<meta name="theme-color" content="#FFFFFF">
+<meta name="description" content="PaperLite 是一款面向个人设备的 Android 系统能力工具：无线调试配对、应用静默安装与管理、冻结清数据、终端命令执行、进程与设备信息查看。">
+<link rel="icon" href="assets/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,600,0,0" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<header class="topbar" id="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#overview">
+      <img src="assets/icon.png" alt="PaperLite 图标" width="32" height="32">
+      <span class="brand-name">PaperLite</span>
+      <span class="brand-tag">Lite</span>
+    </a>
+
+    <nav class="topnav" aria-label="主导航">
+      <a href="#overview" class="nav-link is-active">概览</a>
+      <a href="#features" class="nav-link">功能</a>
+      <a href="#channels" class="nav-link">通道</a>
+      <a href="#usage" class="nav-link">使用</a>
+      <a href="#notice" class="nav-link">公告</a>
+      <a href="#download" class="nav-link">下载</a>
+      <a href="#about" class="nav-link">关于</a>
+    </nav>
+
+    <div class="topbar-actions">
+      <button class="icon-btn" id="themeToggle" type="button" aria-label="切换深浅色">
+        <span class="msr" data-icon="light_mode"></span>
+      </button>
+      <a class="btn btn-primary btn-sm" href="#download">下载</a>
+    </div>
+
+    <!-- 阅读进度：贴在顶栏底边，不遮挡内容 -->
+    <div class="progress" id="progress"></div>
+  </div>
+</header>
+
+<!-- 侧边栏（桌面端） -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-inner">
+    <p class="sidebar-label">PaperLite</p>
+    <ul class="side-list">
+      <li><a href="#overview" class="side-link is-active"><span class="msr" data-icon="home"></span>概览</a></li>
+      <li><a href="#features" class="side-link"><span class="msr" data-icon="widgets"></span>功能</a></li>
+      <li><a href="#channels" class="side-link"><span class="msr" data-icon="hub"></span>通道</a></li>
+      <li><a href="#usage" class="side-link"><span class="msr" data-icon="terminal"></span>使用</a></li>
+      <li><a href="#notice" class="side-link"><span class="msr" data-icon="campaign"></span>公告</a></li>
+      <li><a href="#download" class="side-link"><span class="msr" data-icon="download"></span>下载</a></li>
+      <li><a href="#about" class="side-link"><span class="msr" data-icon="badge"></span>关于</a></li>
+    </ul>
+
+    <div class="sidebar-foot">
+      <div class="author-mini">
+        <img src="assets/avatar.png" alt="Dr.Fox 头像" width="36" height="36">
+        <div>
+          <p class="author-mini-name">Dr.Fox</p>
+          <p class="author-mini-role">Lite 开发者</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<main class="content">
+
+  <!-- 概览 -->
+  <section class="page is-active" id="overview">
+    <div class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="dot"></span>面向个人设备的系统能力工具</p>
+        <h1 class="hero-title">PaperLite</h1>
+        <p class="hero-sub">
+          把原本只能在电脑上折腾的设备权限，收进一个轻量应用里。
+          无线调试配对完成之后，静默安装、批量卸载、冻结清数据、终端命令
+          全部在设备本机完成，不需要数据线，也不需要电脑，更不依赖任何服务器。
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#download">
+            <span class="msr" data-icon="download"></span>下载 APK
+          </a>
+          <a class="btn btn-ghost" href="#features">
+            <span class="msr" data-icon="explore"></span>看看能做什么
+          </a>
+        </div>
+
+        <ul class="hero-facts">
+          <li><span class="msr" data-icon="android"></span>Android 10 及以上</li>
+          <li><span class="msr" data-icon="bolt"></span>免电脑直连</li>
+          <li><span class="msr" data-icon="lock_open"></span>无账号无上传</li>
+          <li><span class="msr" data-icon="inventory_2"></span>约 47 MB</li>
+        </ul>
+      </div>
+
+      <div class="hero-visual">
+        <!-- 手机示意 -->
+        <div class="phone">
+          <div class="phone-notch"></div>
+          <div class="phone-screen">
+            <div class="phone-rail">
+              <span class="msr rail-ic is-on" data-icon="home"></span>
+              <span class="msr rail-ic" data-icon="storefront"></span>
+              <span class="msr rail-ic" data-icon="install_mobile"></span>
+              <span class="msr rail-ic" data-icon="delete"></span>
+              <span class="msr rail-ic" data-icon="grid_view"></span>
+              <span class="msr rail-ic" data-icon="tune"></span>
+              <span class="msr rail-ic" data-icon="qr_code_scanner"></span>
+              <span class="msr rail-ic" data-icon="campaign"></span>
+              <span class="msr rail-ic" data-icon="settings"></span>
+              <span class="msr rail-ic" data-icon="info"></span>
+            </div>
+            <div class="phone-body">
+              <p class="phone-title">概览</p>
+              <div class="phone-tiles">
+                <div class="p-tile"><b>5</b><span>通道</span></div>
+                <div class="p-tile"><b>3</b><span>可用</span></div>
+                <div class="p-tile"><b>10</b><span>功能页</span></div>
+              </div>
+              <div class="p-row"><span class="p-pill ok">可用</span>Root 通道</div>
+              <div class="p-row"><span class="p-pill ok">可用</span>无线调试会话</div>
+              <div class="p-row"><span class="p-pill warn">未配对</span>设备所有者</div>
+              <div class="p-row"><span class="p-pill ok">可用</span>本地回环推包</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-strip">
+      <div class="stat"><b>5</b><span>条高权限通道</span></div>
+      <div class="stat"><b>10</b><span>个独立功能页</span></div>
+      <div class="stat"><b>30s</b><span>安装代理看门狗</span></div>
+      <div class="stat"><b>0</b><span>个后台常驻进程</span></div>
+    </div>
+  </section>
+
+  <!-- 功能 -->
+  <section class="page" id="features">
+    <header class="page-head">
+      <p class="eyebrow"><span class="dot"></span>功能</p>
+      <h2>一个功能一个页面</h2>
+      <p class="page-desc">
+        十个侧边栏入口各自独立，不做分页嵌套。打开就是要做的事，
+        按钮永远可点——权限不够时给出明确原因，而不是把按钮灰掉让人猜。
+      </p>
+    </header>
+
+    <div class="feature-grid">
+      <article class="f-card">
+        <span class="msr f-ic" data-icon="home"></span>
+        <h3>概览</h3>
+        <p>通道状态一览，一键重新探测。服务器只做 TCP 存活检测，不发请求、不读响应。</p>
+      </article>
+
+      <article class="f-card">
+        <span class="msr f-ic" data-icon="storefront"></span>
+        <h3>应用</h3>
+        <p>已安装应用列表，支持用户与系统应用分类。搜索、勾选、批量操作都在这里完成。</p>
+      </article>
+
+      <article class="f-card">
+        <span class="msr f-ic" data-icon="install_mobile"></span>
+        <h3>安装</h3>
+        <p>内置文件选择器选包，先解析出包名与版本，再按通道依次尝试静默安装。</p>
+      </article>
+
+      <article class="f-card">
+        <span class="msr f-ic" data-icon="delete"></span>
+        <h3>卸载</h3>
+        <p>按包名卸载、冻结停用、清除数据。系统应用卸不掉时自动降级为停用。</p>
+      </article>
+
+      <article class="f-card">
+        <span class="msr f-ic" data-icon="grid_view"></span>
+        <h3>设备</h3>
+        <p>机型、系统版本、构建号、内存与存储占用，以及实时进程列表。</p>
+      </article>
+
+      <article class="f-card">
+        <span class="msr f-ic" data-icon="tune"></span>
+        <h3>终端</h3>
+        <p>配对之后执行任意 shell 命令，附七条常用命令预设。输出按通道标注，失败原因写清楚。</p>
+      </article>
+
+      <article class="f-card">
+        <span class="msr f-ic" data-icon="qr_code_scanner"></span>
+        <h3>配对</h3>
+        <p>无线调试配对全流程：搜索服务端口、识别配对码、建立会话、断开与清理记录。</p>
+      </article>
+
+      <article class="f-card">
+        <span class="msr f-ic" data-icon="campaign"></span>
+        <h3>公告</h3>
+        <p>公告存在手机本地，服务器关着也能看。可以填一个地址自动更新，拉不到就继续用本地那份。</p>
+      </article>
+
+      <article class="f-card">
+        <span class="msr f-ic" data-icon="settings"></span>
+        <h3>设置</h3>
+        <p>深浅色、字号缩放与通道参数。运行日志和上次异常堆栈都能直接查看复制。</p>
+      </article>
+
+      <article class="f-card">
+        <span class="msr f-ic" data-icon="info"></span>
+        <h3>关于</h3>
+        <p>版本信息、风险提示，以及开发者名片。</p>
+      </article>
+    </div>
+
+    <div class="feature-extra">
+      <div class="ex-block">
+        <h3><span class="msr" data-icon="verified_user"></span>应用管理</h3>
+        <ul class="tick-list">
+          <li>应用列表按名称与包名双向搜索</li>
+          <li>多选后批量卸载、批量冻结</li>
+          <li>提取应用 APK 并计算 SHA-256 / SHA-1 校验值</li>
+          <li>单独应用防卸载保护，重启后依然有效</li>
+          <li>一键跳转到系统应用详情页</li>
+        </ul>
+      </div>
+      <div class="ex-block">
+        <h3><span class="msr" data-icon="palette"></span>界面</h3>
+        <ul class="tick-list">
+          <li>小米澎湃 OS 3 配色，纯白底加一层浅灰分区</li>
+          <li>九个独立页面，侧边栏固定常驻</li>
+          <li>确认弹窗、动作面板、消息条全部带进出场过渡</li>
+          <li>深浅色跟随系统，也可手动切换</li>
+          <li>字号可调 90% 到 120%</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 通道 -->
+  <section class="page" id="channels">
+    <header class="page-head">
+      <p class="eyebrow"><span class="dot"></span>通道</p>
+      <h2>五条权限通道，逐级降级</h2>
+      <p class="page-desc">
+        PaperLite 不假设你有 root。启动时逐条探测可用通道，
+        需要高权限的操作按优先级自动挑一条能用的执行，并把走了哪条路告诉你。
+      </p>
+    </header>
+
+    <div class="channel-list">
+      <div class="ch-item">
+        <div class="ch-head">
+          <span class="msr ch-ic" data-icon="verified_user"></span>
+          <div>
+            <h3>设备所有者</h3>
+            <p>DevicePolicyManager 授予的 owner 权限</p>
+          </div>
+          <span class="ch-badge">静默安装 · 防卸载 · 临时停用</span>
+        </div>
+        <p class="ch-desc">可静默安装应用、为指定应用开启防卸载保护、临时停用账号类应用。</p>
+      </div>
+
+      <div class="ch-item">
+        <div class="ch-head">
+          <span class="msr ch-ic" data-icon="wifi_tethering"></span>
+          <div>
+            <h3>无线调试会话</h3>
+            <p>与本机无线调试服务配对后建立的 adb 会话</p>
+          </div>
+          <span class="ch-badge">shell 命令 · 冻结停用</span>
+        </div>
+        <p class="ch-desc">执行任意 shell 命令。配对成功后即时生效，断线自动重连上次端口。</p>
+      </div>
+
+      <div class="ch-item">
+        <div class="ch-head">
+          <span class="msr ch-ic" data-icon="loop"></span>
+          <div>
+            <h3>本地回环推包</h3>
+            <p>经由 127.0.0.1 的 adbd 回环端口</p>
+          </div>
+          <span class="ch-badge">静默安装 · 静默卸载</span>
+        </div>
+        <p class="ch-desc">把安装包推到 /data/local/tmp 再执行 pm install，断网也能用。</p>
+      </div>
+
+      <div class="ch-item">
+        <div class="ch-head">
+          <span class="msr ch-ic" data-icon="security"></span>
+          <div>
+            <h3>Root 通道</h3>
+            <p>检测到 su 后直接以 root 执行</p>
+          </div>
+          <span class="ch-badge">全部 shell 能力</span>
+        </div>
+        <p class="ch-desc">能力最全且不受系统校验限制。探测带 2.5 秒超时，不会卡住界面。</p>
+      </div>
+
+      <div class="ch-item">
+        <div class="ch-head">
+          <span class="msr ch-ic" data-icon="accessibility_new"></span>
+          <div>
+            <h3>无障碍服务</h3>
+            <p>读取配对页面并自动填写配对码</p>
+          </div>
+          <span class="ch-badge">配对码自动填写</span>
+        </div>
+        <p class="ch-desc">只读取配对对话框里的六位数字，识别完成即停止，不保存截图。</p>
+      </div>
+    </div>
+
+    <div class="install-flow">
+      <h3><span class="msr" data-icon="alt_route"></span>安装是怎么做的</h3>
+      <p class="flow-desc">
+        静默安装不是靠 root 硬跑 pm，而是把应用自身挂进 app_process，
+        让它在 system 身份下走 PackageInstaller 会话 API——这才是没有确认框的真静默。
+      </p>
+      <ol class="flow-steps">
+        <li>
+          <span class="step-no">1</span>
+          <div>
+            <b>安装代理</b>
+            <p>把自身 APK 通过 CLASSPATH 交给 app_process，在 system 身份下提交安装会话，全程无弹窗。这条通道要求命令以 root 或 adb shell 身份执行，所以<strong>必须先完成无线调试配对</strong>——用应用自己的 uid 跑会被 SELinux 拦掉。</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-no">2</span>
+          <div>
+            <b>本地 pm install</b>
+            <p>代理不可用时退回到 pm install -r -d 覆盖安装。</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-no">3</span>
+          <div>
+            <b>无线调试推包</b>
+            <p>再退一步，把包推到 /data/local/tmp 后执行 pm install。</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-no">4</span>
+          <div>
+            <b>设备所有者会话</b>
+            <p>owner 权限下的 PackageInstaller 静默会话，作为不依赖 shell 的兜底。</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-no">5</span>
+          <div>
+            <b>系统安装器</b>
+            <p>全部失败时拉起系统安装界面，把选择权交回给你。</p>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- 使用 -->
+  <section class="page" id="usage">
+    <header class="page-head">
+      <p class="eyebrow"><span class="dot"></span>使用</p>
+      <h2>三步开始</h2>
+      <p class="page-desc">
+        整个流程不需要数据线，不需要电脑。首次使用唯一要做的，
+        是在系统设置里打开无线调试。
+      </p>
+    </header>
+
+    <div class="step-grid">
+      <div class="s-card">
+        <span class="s-no">01</span>
+        <h3>打开无线调试</h3>
+        <p>设置 → 开发者选项 → 无线调试。系统要求 Android 11 及以上。</p>
+        <div class="s-code">设置 › 开发者选项 › 无线调试</div>
+      </div>
+      <div class="s-card">
+        <span class="s-no">02</span>
+        <h3>在 PaperLite 里配对</h3>
+        <p>进「配对」页搜索服务端口，手动输入配对码，或用识别按钮自动读取。配对是安装代理能跑起来的前提。</p>
+        <div class="s-code">配对页 › 搜索端口 › 输入配对码</div>
+      </div>
+      <div class="s-card">
+        <span class="s-no">03</span>
+        <h3>开始操作</h3>
+        <p>通道自动就绪。装包、卸应用、跑命令，直接在对应页面里做。</p>
+        <div class="s-code">安装页 › 选包 › 开始安装</div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="note">
+        <span class="msr" data-icon="info"></span>
+        <div>
+          <b>为什么无线调试要 Android 11 以上</b>
+          <p>mDNS 服务发现是 Android 11 才引入的机制，低版本只能手工填端口。</p>
+        </div>
+      </div>
+      <div class="note">
+        <span class="msr" data-icon="privacy_tip"></span>
+        <div>
+          <b>数据不出设备</b>
+          <p>没有账号、没有统计、没有上传。服务器地址只是你自己填的一个可选开关。</p>
+        </div>
+      </div>
+      <div class="note">
+        <span class="msr" data-icon="report"></span>
+        <div>
+          <b>遇到问题</b>
+          <p>设置页有「上次异常退出」，里面是完整崩溃堆栈，复制出来就能定位。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 公告 -->
+  <section class="page" id="notice">
+    <header class="page-head">
+      <p class="eyebrow"><span class="dot"></span>公告</p>
+      <h2>公告</h2>
+      <p class="page-desc">
+        公告保存在手机本地，断网、关服务器都能看。
+        如果填了远程地址，能连上就自动更新，连不上则继续显示本地这一份。
+      </p>
+    </header>
+
+    <div class="notice-list" id="noticeList">
+      <div class="notice-item">
+        <div class="ni-head">
+          <h3>欢迎使用 PaperLite</h3>
+          <span class="ni-tag">info</span>
+        </div>
+        <p>先在「配对」页完成无线调试配对，配对成功后「安装」「终端」等页面即可使用。配对码可以手动输入，也可以用「识别配对码」按钮自动读取。</p>
+      </div>
+
+      <div class="notice-item">
+        <div class="ni-head">
+          <h3>静默安装是怎么做到的</h3>
+          <span class="ni-tag">info</span>
+        </div>
+        <p>PaperLite 会把自身 APK 挂给 app_process，让它在 system 身份下走 PackageInstaller 会话 API 提交安装，所以不会出现确认弹窗。如果这条通道失败，会依次回退到 pm install、无线调试推包、设备所有者会话，最后才是系统安装界面。</p>
+      </div>
+
+      <div class="notice-item">
+        <div class="ni-head">
+          <h3>装不上时怎么排查</h3>
+          <span class="ni-tag">warn</span>
+        </div>
+        <p>安装页有一块「安装诊断」，会真的跑一遍安装代理命令并把系统返回的原始输出贴出来。ClassNotFoundException 说明入口没被找到，Permission denied 说明 SELinux 拦了。</p>
+      </div>
+
+      <div class="notice-item">
+        <div class="ni-head">
+          <h3>公告与服务器无关</h3>
+          <span class="ni-tag">info</span>
+        </div>
+        <p>本页面显示的公告保存在手机本地，服务器关着也能看到。如果你填了远程公告地址，能连上就会更新，连不上则继续显示本地这份。</p>
+      </div>
+    </div>
+
+    <div class="notice-note">
+      <span class="msr" data-icon="cloud_off"></span>
+      <p>
+        应用内不连接任何固定服务器，也不上报任何统计。
+        公告地址是可选的，留空就完全离线使用。
+      </p>
+    </div>
+  </section>
+
+  <!-- 下载 -->
+  <section class="page" id="download">
+    <header class="page-head">
+      <p class="eyebrow"><span class="dot"></span>下载</p>
+      <h2>PaperLite v1.0.0</h2>
+      <p class="page-desc">
+        当前提供 Debug 版本，包名 com.codefox.paperlite。
+        安装前请确认已开启未知来源安装。
+      </p>
+    </header>
+
+    <div class="dl-card">
+      <img src="assets/icon-512.png" alt="PaperLite 应用图标" width="96" height="96" class="dl-icon">
+      <div class="dl-main">
+        <h3>PaperLite-debug.apk</h3>
+        <ul class="dl-specs">
+          <li><span>版本</span><b>1.0.0 (1)</b></li>
+          <li><span>包名</span><b class="mono">com.codefox.paperlite</b></li>
+          <li><span>系统要求</span><b>Android 10+</b></li>
+          <li><span>体积</span><b>约 47 MB</b></li>
+          <li><span>架构</span><b>arm64-v8a / armeabi-v7a</b></li>
+        </ul>
+        <a class="btn btn-primary btn-lg" href="PaperLite-debug.apk" download>
+          <span class="msr" data-icon="download"></span>下载 APK
+        </a>
+        <p class="dl-note">下载的是未签名的调试包，安装时系统会提示未知来源，确认即可。</p>
+      </div>
+    </div>
+
+    <div class="dl-grid">
+      <div class="dlg-card">
+        <span class="msr" data-icon="verified"></span>
+        <h4>校验安装包</h4>
+        <p>装之前可以先算一下哈希值，确认拿到的是完整的包。</p>
+        <div class="s-code">sha256sum PaperLite-debug.apk</div>
+      </div>
+      <div class="dlg-card">
+        <span class="msr" data-icon="install_desktop"></span>
+        <h4>用数据线装</h4>
+        <p>也可以把 APK 传到电脑，用 adb 命令直接装到设备上。</p>
+        <div class="s-code">adb install -r PaperLite-debug.apk</div>
+      </div>
+      <div class="dlg-card">
+        <span class="msr" data-icon="gpp_maybe"></span>
+        <h4>风险提示</h4>
+        <p>本工具需要较高系统权限。仅用于你自己的设备，遵守当地法律法规。</p>
+        <div class="s-code">仅供安全研究与学习交流</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 关于 -->
+  <section class="page" id="about">
+    <header class="page-head">
+      <p class="eyebrow"><span class="dot"></span>关于</p>
+      <h2>关于 PaperLite</h2>
+    </header>
+
+    <div class="about-grid">
+      <div class="author-card">
+        <div class="author-top">
+          <img src="assets/avatar.png" alt="Dr.Fox 头像" width="88" height="88">
+          <div class="author-id">
+            <h3>Dr.Fox</h3>
+            <p>PaperLite Lite · 开发者</p>
+            <div class="author-tags">
+              <span class="tag tag-primary">Lite</span>
+              <span class="tag">原版：JC Code</span>
+            </div>
+          </div>
+        </div>
+        <p class="author-note">
+          Lite 版在原版的基础上做了取舍：只保留真正能跑通的能力，
+          每一个功能独立成页，按钮永远可点，所有弹出的东西都带过渡动画。
+        </p>
+      </div>
+
+      <div class="about-info">
+        <div class="ai-block">
+          <h3><span class="msr" data-icon="history"></span>版本信息</h3>
+          <ul class="kv-list">
+            <li><span>应用版本</span><b>1.0.0 (1)</b></li>
+            <li><span>包名</span><b class="mono">com.codefox.paperlite</b></li>
+            <li><span>最低系统</span><b>Android 10 (API 29)</b></li>
+            <li><span>界面框架</span><b>Miuix 0.9.4 + Compose</b></li>
+            <li><span>网络依赖</span><b>无，公告可离线</b></li>
+          </ul>
+        </div>
+
+        <div class="ai-block">
+          <h3><span class="msr" data-icon="help"></span>常见问题</h3>
+          <ul class="faq-list">
+            <li>
+              <b>为什么第一次用要配对？</b>
+              <p>没有 root 也没有设备所有者时，高权限操作只能通过 adb 通道执行，而 adb 通道靠无线调试建立。</p>
+            </li>
+            <li>
+              <b>装得上但没静默？</b>
+              <p>说明代理通道没成功，日志里会写明走了哪条通道、失败原因。可以到终端页手动执行安装命令。</p>
+            </li>
+            <li>
+              <b>系统应用卸不掉？</b>
+              <p>系统应用会被系统拒绝卸载，PaperLite 会自动降级为冻结停用，效果接近。</p>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="license-note">
+      <span class="msr" data-icon="balance"></span>
+      <p>
+        本工具仅供安全研究与学习交流使用。使用前请了解自身设备的所有权状态，
+        遵守当地法律法规。安装、卸载与停用操作不可逆，请确认目标后再执行。
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<!-- 移动端底部导航 -->
+<nav class="mobile-nav" id="mobileNav" aria-label="底部导航">
+  <a href="#overview" class="mnav is-active"><span class="msr" data-icon="home"></span>概览</a>
+  <a href="#features" class="mnav"><span class="msr" data-icon="widgets"></span>功能</a>
+  <a href="#channels" class="mnav"><span class="msr" data-icon="hub"></span>通道</a>
+  <a href="#usage" class="mnav"><span class="msr" data-icon="terminal"></span>使用</a>
+  <a href="#notice" class="mnav"><span class="msr" data-icon="campaign"></span>公告</a>
+  <a href="#download" class="mnav"><span class="msr" data-icon="download"></span>下载</a>
+  <a href="#about" class="mnav"><span class="msr" data-icon="badge"></span>关于</a>
+</nav>
+
+<script src="script.js"></script>
+</body>
+</html>

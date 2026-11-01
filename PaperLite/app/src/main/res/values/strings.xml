@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PaperLite</string>
+    <string name="accessibility_label">PaperLite 配对码填写</string>
+    <string name="accessibility_description">在系统无线调试配对页面自动填写配对码。只读取配对对话框中的六位数字，不采集其他内容。</string>
+    <string name="device_admin_description">PaperLite 需要设备所有者权限，才能在不弹出安装确认框的情况下静默安装应用、停用系统管控服务、为指定应用开启防卸载保护。</string>
+</resources>
