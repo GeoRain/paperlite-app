@@ -57,6 +57,7 @@ import com.codefox.paperlite.ui.components.StatusHero
 import com.codefox.paperlite.ui.components.TextInput
 import com.codefox.paperlite.ui.components.ToastMessage
 import com.codefox.paperlite.ui.theme.LocalStatusColors
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Text
@@ -92,7 +93,16 @@ fun SuperuserPage(
     settings: Settings,
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    // 提示条，先声明，供下面的协程异常处理器复用。
+    var message by remember { mutableStateOf<String?>(null) }
+    // 本页所有耗时操作都走 scope.launch。给它挂一个全局异常处理器：
+    // 任何一个协程意外抛异常（例如早期 IdentityStore 派生公钥失败），
+    // 都只把错误写进提示条，而不是让未捕获异常直接杀掉进程（闪退）。
+    val scope = rememberCoroutineScope {
+        CoroutineExceptionHandler { _, e ->
+            message = "操作出错：${e.message ?: e::class.java.simpleName}"
+        }
+    }
     val listState = rememberLazyListState()
 
     val states by channels.states.collectAsStateWithLifecycle()
@@ -101,7 +111,6 @@ fun SuperuserPage(
     val connectPort by settings.connectPort.collectAsStateWithLifecycle()
 
     var pairCode by remember { mutableStateOf("") }
-    var message by remember { mutableStateOf<String?>(null) }
     var ownerSelf by remember { mutableStateOf(DeviceOwner.isSelf(context)) }
     var ownerActive by remember { mutableStateOf(DeviceOwner.isAdminActive(context)) }
 
@@ -291,7 +300,7 @@ fun SuperuserPage(
                         }
 
                         if (dirtyState.isNotBlank()) InfoRow("状态", dirtyState)
-                        InfoRow("随包 ksud", BundledBinaries.integrity(context).lineSequence().elementAtOrNull(1).orEmpty())
+                        InfoRow("随包 ksud", runCatching { BundledBinaries.integrity(context) }.getOrDefault("").lineSequence().elementAtOrNull(1).orEmpty())
                         if (dirtyLog.isNotEmpty()) {
                             Card(
                                 modifier = Modifier
@@ -400,8 +409,12 @@ fun SuperuserPage(
                                 text = if (busy != null) "处理中…" else "开始配对",
                                 onClick = {
                                     scope.launch {
-                                        val r = channels.pair(pairCode)
-                                        message = r.message
+                                        runCatching {
+                                            val r = channels.pair(pairCode)
+                                            message = r.message
+                                        }.onFailure { e ->
+                                            message = "配对未启动：${e.message ?: e::class.java.simpleName}"
+                                        }
                                     }
                                 },
                             )

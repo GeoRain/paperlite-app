@@ -15,7 +15,9 @@ import java.net.InetSocketAddress
 import java.net.Socket
 import java.security.KeyPair
 import java.security.KeyFactory
+import java.security.PublicKey
 import java.security.spec.PKCS8EncodedKeySpec
+import java.security.spec.X509EncodedKeySpec
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
@@ -260,48 +262,84 @@ class WirelessPairing(private val context: Context) {
  *
  * 私钥用 AndroidKeyStore 里的对称密钥做 AES-GCM 加密后落盘，
  * 明文私钥不会出现在 SharedPreferences 里。
+ *
+ * **可靠性约束（关键）**：[obtain] 必须永不抛异常。早期实现里
+ * [derivePublic] 对非 CRT 形式的私钥会抛 `IllegalStateException`，
+ * 而该异常会穿透到调用方（例如 [com.codefox.paperlite.core.ChannelManager.pair]
+ * 中作为实参求值的 `identity.obtain()`），在 Compose 的 `scope.launch`
+ * 里成为未捕获异常直接把进程干掉。更糟的是损坏的私钥已经落盘，
+ * 导致此后每次 `obtain()` 都重蹈覆辙——这正是「点开始配对就闪退、
+ * 且后面所有操作都闪退」的根因。现在任何失败都回退到「重新生成并覆盖」，
+ * 保证返回的永远是一对可用密钥。
  */
 class IdentityStore(private val context: Context) {
 
     private val sp = context.getSharedPreferences("paperlite_identity", Context.MODE_PRIVATE)
 
-    /** 取得（必要时生成）本机 adb 密钥对。 */
+    /**
+     * 取得（必要时生成）本机 adb 密钥对。
+     *
+     * 永不抛异常：先尝试从持久化恢复，任何一步失败都重新生成一对并落盘。
+     */
     fun obtain(): KeyPair {
-        val encoded = sp.getString(KEY_PRIVATE, null)
-        if (encoded != null) {
-            val raw = runCatching { Base64.decode(encoded, Base64.NO_WRAP) }.getOrNull()
-            if (raw != null) {
-                val priv = runCatching { AdbProtocol.KeyGen.loadPrivate(raw) }.getOrNull()
-                if (priv != null) {
-                    return KeyPair(derivePublic(raw, priv), priv)
-                }
-            }
+        val cached = runCatching { loadCached() }.getOrNull()
+        if (cached != null) return cached
+        return regenerate()
+    }
+
+    /** 从持久化恢复密钥对；任何异常或不可用都返回 null，由 [obtain] 重新生成。 */
+    private fun loadCached(): KeyPair? {
+        val privEnc = sp.getString(KEY_PRIVATE, null) ?: return null
+        val pubEnc = sp.getString(KEY_PUBLIC, null)
+        val rawPriv = Base64.decode(privEnc, Base64.NO_WRAP)
+        val priv = AdbProtocol.KeyGen.loadPrivate(rawPriv)
+        val pub = if (pubEnc != null) {
+            // 优先用单独保存的公钥：稳定、且不依赖私钥是 CRT 形式，
+            // 这样同一对密钥在配对与重连时保持一致。
+            runCatching {
+                KeyFactory.getInstance("RSA")
+                    .generatePublic(X509EncodedKeySpec(Base64.decode(pubEnc, Base64.NO_WRAP)))
+            }.getOrNull() ?: return null
+        } else {
+            // 旧版只存了私钥：尝试从 CRT 参数派生，失败则整体重新生成。
+            runCatching { derivePublic(priv) }.getOrNull() ?: return null
         }
+        return KeyPair(pub, priv)
+    }
+
+    /** 生成全新密钥对并落盘（私钥 + 公钥都存，保证重连时密钥一致）。 */
+    private fun regenerate(): KeyPair {
         val fresh = AdbProtocol.KeyGen.generate()
-        sp.edit().putString(KEY_PRIVATE, Base64.encodeToString(fresh.private.encoded, Base64.NO_WRAP)).apply()
+        runCatching {
+            sp.edit()
+                .putString(KEY_PRIVATE, Base64.encodeToString(fresh.private.encoded, Base64.NO_WRAP))
+                .putString(KEY_PUBLIC, Base64.encodeToString(fresh.public.encoded, Base64.NO_WRAP))
+                .apply()
+        }
         return fresh
     }
 
     /**
-     * 从私钥 PKCS#8 中还原公钥。
+     * 从 CRT 形式的 RSA 私钥还原公钥。
      *
-     * RSA 私钥的 PKCS#8 里包含 CRT 参数，直接用 modulus 与 publicExponent 构造公钥。
+     * 仅当持久化中没有单独公钥时走这里（兼容旧数据）。
+     * 非 CRT 私钥直接返回 null，交由 [regenerate] 处理——不再抛异常。
      */
-    private fun derivePublic(pkcs8: ByteArray, priv: java.security.PrivateKey): java.security.PublicKey {
-        val crt = priv as? java.security.interfaces.RSAPrivateCrtKey
-            ?: error("私钥不是 RSA 格式")
+    private fun derivePublic(priv: java.security.PrivateKey): java.security.PublicKey? {
+        val crt = priv as? java.security.interfaces.RSAPrivateCrtKey ?: return null
         val spec = java.security.spec.RSAPublicKeySpec(crt.modulus, crt.publicExponent)
         return KeyFactory.getInstance("RSA").generatePublic(spec)
     }
 
     /** 清除本机配对身份，下次需要重新配对。 */
     fun clear() {
-        sp.edit().remove(KEY_PRIVATE).apply()
+        sp.edit().remove(KEY_PRIVATE).remove(KEY_PUBLIC).apply()
     }
 
     fun hasIdentity(): Boolean = sp.contains(KEY_PRIVATE)
 
     companion object {
         private const val KEY_PRIVATE = "adb_private_key"
+        private const val KEY_PUBLIC = "adb_public_key"
     }
 }

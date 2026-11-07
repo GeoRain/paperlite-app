@@ -1,0 +1,13 @@
+{
+  "name": "paperlite-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PaperLite 电脑网页版 · 本地 ADB 桥接控制台",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

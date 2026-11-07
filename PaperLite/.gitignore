@@ -8,3 +8,8 @@ local.properties
 captures/
 .externalNativeBuild/
 .cxx/
+
+# 本地构建产物 / 私有数据（不入库）
+/PaperLite-debug.apk
+libs/android.jar
+.workbuddy/

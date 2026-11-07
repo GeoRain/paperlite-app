@@ -98,7 +98,8 @@ data class BrandColors(
          * 这是**真的取色**，不是拿壁纸盖一层蓝色滤镜：
          */
         fun fromBitmap(bitmap: Bitmap, dark: Boolean, m3: Boolean): BrandColors {
-            val seed = extractSeed(bitmap) ?: return xiaomi(dark, m3)
+            val seed = runCatching { extractSeed(bitmap) }.getOrNull()
+                ?: return xiaomi(dark, m3)
             return fromSeed(seed, dark)
         }
 
@@ -110,46 +111,53 @@ data class BrandColors(
          * 跳过过暗、过亮、低饱和的像素（它们基本是背景与高光）。
          */
         fun extractSeed(bitmap: Bitmap): Color? {
-            val small = runCatching {
-                Bitmap.createScaledBitmap(bitmap, 64, 64, false)
-            }.getOrNull() ?: return null
+            // 部分 ROM 的 WebP / 自适应位图解码器会返回非标准配置，
+            // getPixel / createScaledBitmap 可能抛异常。任何异常都视为取色失败，
+            // 直接回退小米蓝，绝不能让它击穿到主线程导致应用闪退。
+            return try {
+                val small = runCatching {
+                    Bitmap.createScaledBitmap(bitmap, 64, 64, false)
+                }.getOrNull() ?: return null
 
-            val buckets = FloatArray(36) // 每桶累计权重
-            val satSum = FloatArray(36)
-            val lightSum = FloatArray(36)
-            val count = IntArray(36)
-            val hsl = FloatArray(3)
+                val buckets = FloatArray(36) // 每桶累计权重
+                val satSum = FloatArray(36)
+                val lightSum = FloatArray(36)
+                val count = IntArray(36)
+                val hsl = FloatArray(3)
 
-            for (y in 0 until small.height) {
-                for (x in 0 until small.width) {
-                    val pixel = small.getPixel(x, y)
-                    val a = android.graphics.Color.alpha(pixel)
-                    if (a < 128) continue
-                    android.graphics.Color.colorToHSV(pixel, hsl)
-                    val s = hsl[1]
-                    val v = hsl[2]
-                    if (s < 0.18f || v < 0.20f || v > 0.97f) continue
-                    val bin = (hsl[0] / 10f).toInt().coerceIn(0, 35)
-                    val weight = 0.4f + s
-                    buckets[bin] += weight
-                    satSum[bin] += s
-                    lightSum[bin] += v
-                    count[bin]++
+                for (y in 0 until small.height) {
+                    for (x in 0 until small.width) {
+                        val pixel = small.getPixel(x, y)
+                        val a = android.graphics.Color.alpha(pixel)
+                        if (a < 128) continue
+                        android.graphics.Color.colorToHSV(pixel, hsl)
+                        val s = hsl[1]
+                        val v = hsl[2]
+                        if (s < 0.18f || v < 0.20f || v > 0.97f) continue
+                        val bin = (hsl[0] / 10f).toInt().coerceIn(0, 35)
+                        val weight = 0.4f + s
+                        buckets[bin] += weight
+                        satSum[bin] += s
+                        lightSum[bin] += v
+                        count[bin]++
+                    }
                 }
-            }
 
-            var best = -1
-            var bestScore = 0f
-            for (i in 0..35) {
-                if (buckets[i] > bestScore) {
-                    bestScore = buckets[i]
-                    best = i
+                var best = -1
+                var bestScore = 0f
+                for (i in 0..35) {
+                    if (buckets[i] > bestScore) {
+                        bestScore = buckets[i]
+                        best = i
+                    }
                 }
+                if (best < 0 || count[best] == 0) return null
+                val hue = best * 10f + 5f
+                val sat = (satSum[best] / count[best]).coerceIn(0.42f, 0.85f)
+                Color.hsv(hue, sat, 0.90f)
+            } catch (t: Throwable) {
+                null
             }
-            if (best < 0 || count[best] == 0) return null
-            val hue = best * 10f + 5f
-            val sat = (satSum[best] / count[best]).coerceIn(0.42f, 0.85f)
-            return Color.hsv(hue, sat, 0.90f)
         }
 
         /**

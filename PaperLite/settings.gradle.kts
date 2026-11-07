@@ -9,6 +9,7 @@ pluginManagement {
         }
         mavenCentral()
         gradlePluginPortal()
+        maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
     }
 }
 
@@ -27,3 +28,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "PaperLite"
 include(":app")
+include(":desktop")

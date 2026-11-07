@@ -18,8 +18,8 @@ android {
         // 设备所有者 / 无线调试配对 / 无障碍 都需要 29+
         minSdk = 29
         targetSdk = 37
-        versionCode = 9
-        versionName = "1.8"
+        versionCode = 13
+        versionName = "1.12"
     }
 
     androidResources {

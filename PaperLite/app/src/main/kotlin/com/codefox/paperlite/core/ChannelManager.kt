@@ -556,9 +556,15 @@ class ChannelManager(
         withContext(Dispatchers.IO) {
             _busy.value = "正在与设备配对"
             try {
+                // identity.obtain() 现在保证不抛异常，这里再用 runCatching 兜底一层，
+                // 确保任何意外（RSA 提供器异常等）都转成 Result，绝不穿透到 scope.launch。
+                val keyPair = runCatching { identity.obtain() }.getOrNull()
+                    ?: return@withContext com.codefox.paperlite.core.channel.WirelessPairing.Result(
+                        false, 0, 0, "无法生成本机 adb 密钥（RSA 提供器异常）",
+                    )
                 val r = pairing.pair(
                     pairCode = code,
-                    keyPair = identity.obtain(),
+                    keyPair = keyPair,
                     port = settings.pairPort.value,
                     onStage = { log(it) },
                 )
@@ -572,6 +578,13 @@ class ChannelManager(
                 }
                 log("配对结果：${r.message}")
                 r
+            } catch (e: Exception) {
+                // 双保险：WirelessPairing.pair 内部已兜住握手异常，
+                // 这里再兜一层，任何未料的异常都转成 Result 返回，
+                // 避免未捕获异常在 scope.launch 里直接杀掉进程。
+                com.codefox.paperlite.core.channel.WirelessPairing.Result(
+                    false, 0, 0, "配对异常：${e.message ?: e::class.java.simpleName}",
+                )
             } finally {
                 _busy.value = null
             }

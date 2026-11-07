@@ -35,13 +35,20 @@ import kotlinx.coroutines.withContext
  * 壁纸与取色在这里汇合：读图 → 提主色 → 生成品牌色 → 注入主题，
  * 同一张位图再交给 [PaperLiteApp] 画背景，保证「看到的背景」与「取到的颜色」
  * 永远来自同一张图，不会换了图配色却没跟着变。
+ *
+ * 启动期若首帧组合抛异常，由 [com.codefox.paperlite.core.CrashGuard] 的全局
+ * 未捕获异常处理器接管：把堆栈写进应用私有目录与系统「下载」目录
+ * （`PaperLite-crash-*.txt`），无需进应用即可取证。Compose 不允许在组合调用
+ * 外套 try/catch，所以崩溃兜底统一走 CrashGuard，不在这里内联处理。
  */
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // 官方推荐：enableEdgeToEdge 在 super.onCreate 之前调用，
         // 这样首帧（含启动画面过渡）就已经是全面屏布局，不会先白一下再跳
-        enableEdgeToEdge()
+        // 部分定制 ROM（MIUI / HyperOS / 作业帮等）的 WindowInsetsController 实现
+        // 不完整，enableEdgeToEdge 可能直接抛异常；这里包一层，绝不能让启动即崩。
+        runCatching { enableEdgeToEdge() }
         super.onCreate(savedInstanceState)
 
         val app = application as App
@@ -72,17 +79,23 @@ class MainActivity : ComponentActivity() {
             // 而 produceState 最多只给 3 个 key。
             var brand by remember { mutableStateOf<BrandColors?>(null) }
             LaunchedEffect(colorSource, wallpaper?.first, dark, designStyle) {
-                brand = withContext(Dispatchers.IO) {
-                    val m3 = designStyle == DesignStyle.Material3
-                    when (colorSource) {
-                        ColorSource.Xiaomi -> BrandColors.xiaomi(dark, m3)
-                        ColorSource.Wallpaper -> wallpaper?.first?.let {
-                            BrandColors.fromBitmap(it, dark, m3)
-                        } ?: BrandColors.xiaomi(dark, m3)
-                        ColorSource.SystemMonet ->
-                            BrandColors.fromSystem(this@MainActivity, dark, m3)
-                                ?: BrandColors.xiaomi(dark, m3)
+                // 取色 / 动态色计算兜底：任何异常都回退小米蓝，不让协程异常
+                // 击穿重组导致整页崩溃。
+                brand = runCatching {
+                    withContext(Dispatchers.IO) {
+                        val m3 = designStyle == DesignStyle.Material3
+                        when (colorSource) {
+                            ColorSource.Xiaomi -> BrandColors.xiaomi(dark, m3)
+                            ColorSource.Wallpaper -> wallpaper?.first?.let {
+                                BrandColors.fromBitmap(it, dark, m3)
+                            } ?: BrandColors.xiaomi(dark, m3)
+                            ColorSource.SystemMonet ->
+                                BrandColors.fromSystem(this@MainActivity, dark, m3)
+                                    ?: BrandColors.xiaomi(dark, m3)
+                        }
                     }
+                }.getOrElse {
+                    BrandColors.xiaomi(dark, designStyle == DesignStyle.Material3)
                 }
             }
 

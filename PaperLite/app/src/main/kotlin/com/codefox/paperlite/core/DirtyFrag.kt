@@ -220,7 +220,7 @@ object DirtyFrag {
 
                 else -> {
                     Log.w(TAG, "dirtyfrag exit=$code")
-                    Result(false, "利用未成功（退出码 $code）", logs)
+                    Result(false, interpretFailure(logs), logs)
                 }
             }
         } catch (t: Throwable) {
@@ -230,6 +230,30 @@ object DirtyFrag {
             runCatching { transform?.close() }
             runCatching { spi?.close() }
             runCatching { udpSocket?.close() }
+        }
+    }
+
+    /**
+     * 把利用程序输出的关键行翻译成界面能直接给用户看的中文结论。
+     *
+     * 原生程序（DFRoot）用英文打 marker，这里只做关键字匹配，
+     * 不改动任何利用逻辑；目的是让「不可利用」这类确定性失败
+     * 给出可执行建议，而不是一句含糊的「退出码 N」。
+     */
+    private fun interpretFailure(logs: List<String>): String {
+        val text = logs.joinToString("\n")
+        return when {
+            text.contains("DEVICE NOT VULNERABLE", ignoreCase = true) ->
+                "本设备不可利用：内核/系统已修补 DirtyFrag 路径（APEX 只读、" +
+                "IPsec 页缓存写原语被回补）。建议改用解锁 Bootloader + KernelSU，" +
+                "或换一台 Android 12+ 且内核未回补的设备。"
+
+            text.contains("verification failed", ignoreCase = true) ||
+                text.contains("failed to patch files", ignoreCase = true) ->
+                "利用原语未生效（写校验未通过）：目标文件在该系统上不可改写，" +
+                "设备大概率已修补此漏洞。"
+
+            else -> "利用未成功（利用程序异常退出，详见下方日志）"
         }
     }
 

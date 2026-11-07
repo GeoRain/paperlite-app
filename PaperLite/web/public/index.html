@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PaperLite 电脑版</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&display=block" />
+<style>
+  :root {
+    --primary: #3482ff;
+    --primary-dark: #5c9aff;
+    --on-primary: #ffffff;
+    --bg: #f4f6fb;
+    --surface: #ffffff;
+    --surface-2: #eef2f9;
+    --surface-variant: #e8f1ff;
+    --on-surface: #1a1c22;
+    --on-surface-2: #5b626f;
+    --outline: #dfe4ee;
+    --warn: #e8a33d;
+    --danger: #e25555;
+    --ok: #2fb86b;
+    --shadow: 0 1px 2px rgba(20,30,60,.06), 0 8px 24px rgba(20,30,60,.06);
+    --radius: 24px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --primary: #5c9aff;
+      --primary-dark: #3482ff;
+      --on-primary: #0b1020;
+      --bg: #0e1118;
+      --surface: #161b26;
+      --surface-2: #1d2433;
+      --surface-variant: #16243d;
+      --on-surface: #e7ebf3;
+      --on-surface-2: #98a1b3;
+      --outline: #2a3140;
+      --warn: #e8b765;
+      --danger: #ff7676;
+      --ok: #5fd99a;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--on-surface);
+    display: grid;
+    grid-template-columns: 248px 1fr;
+    overflow: hidden;
+  }
+  .material-symbols-rounded {
+    font-family: 'Material Symbols Rounded';
+    font-weight: normal;
+    font-style: normal;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: nowrap;
+    direction: ltr;
+    -webkit-font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+    vertical-align: middle;
+    font-size: 22px;
+  }
+
+  /* 侧边栏 */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--outline);
+    padding: 18px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px 18px;
+  }
+  .brand .logo {
+    width: 40px; height: 40px; border-radius: 12px;
+    background: var(--primary); color: var(--on-primary);
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 18px;
+  }
+  .brand .name { font-size: 17px; font-weight: 600; }
+  .brand .sub { font-size: 12px; color: var(--on-surface-2); }
+  .nav-item {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 14px; border-radius: 14px;
+    color: var(--on-surface-2); cursor: pointer;
+    font-size: 14.5px; user-select: none;
+    transition: background .15s, color .15s;
+  }
+  .nav-item:hover { background: var(--surface-2); }
+  .nav-item.active { background: var(--surface-variant); color: var(--primary); font-weight: 600; }
+  .nav-spacer { flex: 1; }
+
+  /* 主区 */
+  .main { display: flex; flex-direction: column; height: 100%; }
+  .topbar {
+    display: flex; align-items: center; gap: 16px;
+    padding: 16px 28px; border-bottom: 1px solid var(--outline);
+  }
+  .topbar h1 { font-size: 19px; font-weight: 600; }
+  .topbar .sub { font-size: 13px; color: var(--on-surface-2); }
+  .spacer { flex: 1; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 7px 14px; border-radius: 999px;
+    font-size: 13px; font-weight: 500;
+    background: var(--surface-2); color: var(--on-surface-2);
+  }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--on-surface-2); }
+  .chip.ok { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
+  .chip.ok .dot { background: var(--ok); }
+  .chip.bad { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
+  .chip.bad .dot { background: var(--danger); }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px; border-radius: 999px;
+    border: none; cursor: pointer; font-size: 14px; font-weight: 600;
+    background: var(--primary); color: var(--on-primary);
+    transition: filter .15s, transform .05s;
+  }
+  .btn:hover { filter: brightness(1.05); }
+  .btn:active { transform: scale(.98); }
+  .btn.ghost { background: var(--surface-2); color: var(--on-surface); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  .content { padding: 26px 28px; overflow-y: auto; flex: 1; }
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* 卡片网格 */
+  .grid { display: grid; gap: 16px; }
+  .grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+  .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 880px) { .grid.cols-2, .grid.cols-3 { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--surface); border-radius: var(--radius);
+    padding: 20px; box-shadow: var(--shadow);
+  }
+  .card h3 { font-size: 13px; color: var(--on-surface-2); font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .kv { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px dashed var(--outline); font-size: 13.5px; }
+  .kv:last-child { border-bottom: none; }
+  .kv .k { color: var(--on-surface-2); }
+  .kv .v { font-weight: 500; text-align: right; word-break: break-all; }
+  .big { font-size: 26px; font-weight: 700; margin-bottom: 4px; }
+  .muted { color: var(--on-surface-2); font-size: 13px; }
+
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; }
+  .badge.ok { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
+  .badge.bad { background: color-mix(in srgb, var(--danger) 18%, transparent); color: var(--danger); }
+  .badge.warn { background: color-mix(in srgb, var(--warn) 20%, transparent); color: var(--warn); }
+
+  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+  input, select {
+    font-family: inherit; font-size: 14px;
+    padding: 10px 14px; border-radius: 12px;
+    border: 1px solid var(--outline); background: var(--surface);
+    color: var(--on-surface); outline: none;
+  }
+  input:focus, select:focus { border-color: var(--primary); }
+  input.flex { flex: 1; min-width: 180px; }
+
+  .list { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+  .row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 18px; border-bottom: 1px solid var(--outline); font-size: 13.5px;
+  }
+  .row:last-child { border-bottom: none; }
+  .row:hover { background: var(--surface-2); }
+  .row .pkg { font-weight: 500; word-break: break-all; }
+  .row .path { color: var(--on-surface-2); font-size: 12px; word-break: break-all; }
+  .row .mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; }
+
+  .empty { text-align: center; color: var(--on-surface-2); padding: 48px 0; font-size: 14px; }
+
+  /* 终端 */
+  .term-out {
+    background: #0b0f17; color: #cfe3ff; border-radius: 16px;
+    padding: 14px; font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 13px; line-height: 1.5; height: 360px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+  }
+  @media (prefers-color-scheme: dark) { .term-out { background: #05070c; color: #b9d4ff; } }
+
+  /* 弹窗 */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(10,15,30,.45);
+    display: none; align-items: center; justify-content: center; z-index: 50;
+    backdrop-filter: blur(4px);
+  }
+  .overlay.show { display: flex; }
+  .modal {
+    background: var(--surface); border-radius: 28px; padding: 26px;
+    width: min(440px, 92vw); box-shadow: var(--shadow);
+  }
+  .modal h2 { font-size: 18px; margin-bottom: 6px; }
+  .modal p.hint { font-size: 12.5px; color: var(--on-surface-2); margin-bottom: 18px; line-height: 1.5; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12.5px; color: var(--on-surface-2); margin-bottom: 6px; }
+  .field input { width: 100%; }
+  .modal .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
+  .err { color: var(--danger); font-size: 12.5px; margin-top: 10px; min-height: 16px; }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--on-surface); color: var(--surface);
+    padding: 12px 22px; border-radius: 999px; font-size: 13.5px;
+    box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 60;
+  }
+  .toast.show { opacity: .96; }
+</style>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">PL</div>
+      <div>
+        <div class="name">PaperLite</div>
+        <div class="sub">电脑版 · 管理伴侣</div>
+      </div>
+    </div>
+    <div class="nav-item active" data-view="overview"><span class="material-symbols-rounded">dashboard</span>概览</div>
+    <div class="nav-item" data-view="apps"><span class="material-symbols-rounded">apps</span>应用</div>
+    <div class="nav-item" data-view="root"><span class="material-symbols-rounded">shield_person</span>超级用户</div>
+    <div class="nav-item" data-view="device"><span class="material-symbols-rounded">memory</span>设备信息</div>
+    <div class="nav-item" data-view="terminal"><span class="material-symbols-rounded">terminal</span>终端</div>
+    <div class="nav-spacer"></div>
+    <div class="nav-item" id="aboutBtn"><span class="material-symbols-rounded">info</span>关于</div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="viewTitle">概览</h1>
+        <div class="sub" id="viewSub">设备实时状态</div>
+      </div>
+      <div class="spacer"></div>
+      <div class="chip bad" id="connChip"><span class="dot"></span><span id="connText">未连接</span></div>
+      <button class="btn" id="connectBtn"><span class="material-symbols-rounded">link</span>连接</button>
+    </div>
+
+    <div class="content">
+      <!-- 概览 -->
+      <section class="section active" id="view-overview">
+        <div class="grid cols-3">
+          <div class="card">
+            <h3><span class="material-symbols-rounded">smartphone</span>设备</h3>
+            <div class="big" id="ovModel">—</div>
+            <div class="muted" id="ovBrand">—</div>
+          </div>
+          <div class="card">
+            <h3><span class="material-symbols-rounded">android</span>系统</h3>
+            <div class="big" id="ovRelease">—</div>
+            <div class="muted" id="ovSdk">—</div>
+          </div>
+          <div class="card">
+            <h3><span class="material-symbols-rounded">verified</span>Root 状态</h3>
+            <div id="ovRoot" style="margin-top:6px"><span class="badge bad">未检测</span></div>
+          </div>
+        </div>
+        <div class="grid cols-2" style="margin-top:16px">
+          <div class="card">
+            <h3><span class="material-symbols-rounded">memory</span>内核与补丁</h3>
+            <div class="kv"><span class="k">内核</span><span class="v" id="ovKernel">—</span></div>
+            <div class="kv"><span class="k">安全补丁</span><span class="v" id="ovPatch">—</span></div>
+            <div class="kv"><span class="k">Bootloader</span><span class="v" id="ovBoot">—</span></div>
+            <div class="kv"><span class="k">SELinux</span><span class="v" id="ovSelinux">—</span></div>
+          </div>
+          <div class="card">
+            <h3><span class="material-symbols-rounded">admin_panel_settings</span>SU 管理器</h3>
+            <div class="kv"><span class="k">已识别</span><span class="v" id="ovManagers">—</span></div>
+            <div class="kv"><span class="k">序列号</span><span class="v mono" id="ovSerial">—</span></div>
+            <div class="kv"><span class="k">指纹</span><span class="v mono" id="ovFp" style="font-size:11px">—</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 应用 -->
+      <section class="section" id="view-apps">
+        <div class="toolbar">
+          <input class="flex" id="appQuery" placeholder="搜索包名…" />
+          <select id="appType">
+            <option value="all">全部应用</option>
+            <option value="third">仅第三方</option>
+            <option value="system">仅系统</option>
+          </select>
+          <button class="btn ghost" id="appRefresh"><span class="material-symbols-rounded">refresh</span>刷新</button>
+        </div>
+        <div class="list" id="appList"><div class="empty">未连接设备</div></div>
+      </section>
+
+      <!-- 超级用户 -->
+      <section class="section" id="view-root">
+        <div class="grid cols-2">
+          <div class="card">
+            <h3><span class="material-symbols-rounded">shield_person</span>权限状态</h3>
+            <div class="kv"><span class="k">Root 权限</span><span class="v" id="rtRoot">—</span></div>
+            <div class="kv"><span class="k">SELinux</span><span class="v" id="rtSelinux">—</span></div>
+            <div class="kv"><span class="k">DirtyFrag 标记 /dev/df</span><span class="v" id="rtDf">—</span></div>
+          </div>
+          <div class="card">
+            <h3><span class="material-symbols-rounded">build</span>SU 管理器</h3>
+            <div id="rtManagers" class="muted">—</div>
+            <div class="muted" style="margin-top:10px; line-height:1.5">管理器目录位于 /data/adb/ 下。若需临时 root，可在手机端 PaperLite 使用 DirtyFrag 一键 Root（需内核未回补）。</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 设备信息 -->
+      <section class="section" id="view-device">
+        <div class="toolbar">
+          <input class="flex" id="propQuery" placeholder="过滤属性键值…" />
+          <button class="btn ghost" id="propRefresh"><span class="material-symbols-rounded">refresh</span>刷新</button>
+        </div>
+        <div class="list" id="propList"><div class="empty">未连接设备</div></div>
+      </section>
+
+      <!-- 终端 -->
+      <section class="section" id="view-terminal">
+        <div class="toolbar">
+          <input class="flex" id="termCmd" placeholder="输入 adb shell 命令，例如 pm list packages -3" />
+          <button class="btn" id="termRun"><span class="material-symbols-rounded">play_arrow</span>执行</button>
+        </div>
+        <div class="term-out" id="termOut">$ 等待连接…</div>
+      </section>
+    </div>
+  </main>
+
+  <!-- 连接弹窗 -->
+  <div class="overlay" id="connectOverlay">
+    <div class="modal">
+      <h2>连接设备</h2>
+      <p class="hint">在手机「开发者选项 → 无线调试」里查看 IP 地址和端口，以及（若需）配对码。电脑与手机需在同一网络。</p>
+      <div class="field">
+        <label>主机（手机 IP）</label>
+        <input id="cHost" placeholder="例如 192.168.1.50" />
+      </div>
+      <div class="field">
+        <label>端口（无线调试显示的端口）</label>
+        <input id="cPort" placeholder="例如 37099" />
+      </div>
+      <div class="field">
+        <label>配对码（可选，仅首次「使用配对码配对设备」时需要）</label>
+        <input id="cCode" placeholder="6 位配对码" maxlength="6" />
+      </div>
+      <div class="actions">
+        <button class="btn ghost" id="cPair">配对</button>
+        <button class="btn" id="cConnect">连接</button>
+      </div>
+      <div class="err" id="cErr"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let state = { device: null, props: [], apps: [] };
+
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 1800);
+}
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  return r.json();
+}
+function setConn(device) {
+  state.device = device;
+  const chip = $('connChip'), txt = $('connText');
+  if (device) { chip.className = 'chip ok'; txt.textContent = device; }
+  else { chip.className = 'chip bad'; txt.textContent = '未连接'; }
+}
+
+// 导航
+const titles = {
+  overview: ['概览', '设备实时状态'],
+  apps: ['应用', '已安装应用列表'],
+  root: ['超级用户', 'Root 与 SU 管理器'],
+  device: ['设备信息', '系统属性'],
+  terminal: ['终端', '在设备上执行 shell'],
+};
+document.querySelectorAll('.nav-item[data-view]').forEach((el) => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item[data-view]').forEach((n) => n.classList.remove('active'));
+    el.classList.add('active');
+    const v = el.dataset.view;
+    document.querySelectorAll('.section').forEach((s) => s.classList.remove('active'));
+    $('view-' + v).classList.add('active');
+    $('viewTitle').textContent = titles[v][0];
+    $('viewSub').textContent = titles[v][1];
+    if (v === 'overview') loadOverview();
+    if (v === 'root') loadRoot();
+    if (v === 'device') loadProps();
+    if (v === 'apps') loadApps();
+  });
+});
+$('aboutBtn').addEventListener('click', () => toast('PaperLite 电脑版 · 本地 ADB 桥接 · GPL-2.0'));
+
+// 连接弹窗
+$('connectBtn').addEventListener('click', () => { $('cErr').textContent = ''; $('connectOverlay').classList.add('show'); });
+$('connectOverlay').addEventListener('click', (e) => { if (e.target === $('connectOverlay')) $('connectOverlay').classList.remove('show'); });
+$('cConnect').addEventListener('click', async () => {
+  const host = $('cHost').value.trim(), port = $('cPort').value.trim();
+  if (!host || !port) { $('cErr').textContent = '请填主机和端口'; return; }
+  $('cConnect').disabled = true;
+  const r = await api('/api/connect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ host, port }) });
+  $('cConnect').disabled = false;
+  if (r.ok) { setConn(r.device); $('connectOverlay').classList.remove('show'); toast('已连接 ' + r.device); loadOverview(); }
+  else { $('cErr').textContent = (r.out || r.err || '连接失败') + (r.err && r.err.includes('cannot') ? '（确认 IP/端口、同一网络、无线调试已开启）' : ''); }
+});
+$('cPair').addEventListener('click', async () => {
+  const host = $('cHost').value.trim(), port = $('cPort').value.trim(), code = $('cCode').value.trim();
+  if (!host || !port || !code) { $('cErr').textContent = '配对需主机、端口、6 位码'; return; }
+  $('cPair').disabled = true;
+  const r = await api('/api/pair', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ host, port, code }) });
+  $('cPair').disabled = false;
+  $('cErr').textContent = r.ok ? '配对成功，点「连接」' : (r.out || r.err || '配对失败');
+});
+
+// 概览
+async function loadOverview() {
+  const r = await api('/api/overview');
+  if (!r.ok) { setConn(null); toast(r.err || '未连接'); return; }
+  setConn(r.serial);
+  $('ovModel').textContent = r.model;
+  $('ovBrand').textContent = r.brand;
+  $('ovRelease').textContent = 'Android ' + r.release;
+  $('ovSdk').textContent = 'API ' + r.sdk;
+  $('ovRoot').innerHTML = r.rooted
+    ? '<span class="badge ok">已获取 Root</span>'
+    : '<span class="badge bad">未 Root</span>';
+  $('ovKernel').textContent = r.kernel;
+  $('ovPatch').textContent = r.patch;
+  $('ovBoot').textContent = r.bootloader;
+  $('ovSelinux').textContent = r.selinux;
+  $('ovManagers').textContent = r.managers.length ? r.managers.join('、') : '未识别';
+  $('ovSerial').textContent = r.serial;
+  $('ovFp').textContent = r.fingerprint;
+}
+
+// 超级用户
+async function loadRoot() {
+  const r = await api('/api/root');
+  if (!r.ok) { toast(r.err || '未连接'); return; }
+  $('rtRoot').innerHTML = r.rooted ? '<span class="badge ok">已 Root</span>' : '<span class="badge bad">未 Root</span>';
+  $('rtSelinux').textContent = r.selinux;
+  $('rtManagers').innerHTML = r.managers.length
+    ? r.managers.map((m) => '<span class="badge ok" style="margin:2px">' + m + '</span>').join(' ')
+    : '<span class="muted">未识别到 KernelSU / Magisk / APatch</span>';
+  // /dev/df 标记（DirtyFrag 模块挂载）
+  const df = await api('/api/shell', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cmd: 'ls /dev/df 2>/dev/null' }) });
+  $('rtDf').innerHTML = (df.ok && df.out.trim())
+    ? '<span class="badge warn">已挂载（DirtyFrag 生效中）</span>'
+    : '<span class="badge bad">未挂载</span>';
+}
+
+// 应用
+async function loadApps() {
+  if (!state.device) { $('appList').innerHTML = '<div class="empty">未连接设备</div>'; return; }
+  const type = $('appType').value, q = $('appQuery').value;
+  $('appList').innerHTML = '<div class="empty">读取中…</div>';
+  const r = await api('/api/apps?type=' + encodeURIComponent(type) + '&q=' + encodeURIComponent(q));
+  if (!r.ok) { $('appList').innerHTML = '<div class="empty">' + (r.err || '读取失败') + '</div>'; return; }
+  if (!r.apps.length) { $('appList').innerHTML = '<div class="empty">没有匹配的应用</div>'; return; }
+  $('appList').innerHTML = r.apps.map((a) =>
+    '<div class="row"><span class="material-symbols-rounded" style="color:var(--primary)">android</span><div style="flex:1;min-width:0"><div class="pkg">' + escapeHtml(a.pkg) + '</div><div class="path">' + escapeHtml(a.path) + '</div></div></div>'
+  ).join('');
+}
+$('appRefresh').addEventListener('click', loadApps);
+$('appQuery').addEventListener('input', debounce(loadApps, 350));
+$('appType').addEventListener('change', loadApps);
+
+// 设备属性
+async function loadProps() {
+  if (!state.device) { $('propList').innerHTML = '<div class="empty">未连接设备</div>'; return; }
+  const q = $('propQuery').value.toLowerCase();
+  if (!state.props.length) {
+    $('propList').innerHTML = '<div class="empty">读取中…</div>';
+    const r = await api('/api/device');
+    if (!r.ok) { $('propList').innerHTML = '<div class="empty">' + (r.err || '读取失败') + '</div>'; return; }
+    state.props = r.props || [];
+  }
+  const filtered = state.props.filter((p) => !q || p.key.toLowerCase().includes(q) || p.value.toLowerCase().includes(q));
+  if (!filtered.length) { $('propList').innerHTML = '<div class="empty">无匹配属性</div>'; return; }
+  $('propList').innerHTML = filtered.slice(0, 600).map((p) =>
+    '<div class="row"><div style="flex:1;min-width:0"><div class="pkg mono" style="font-size:12px">' + escapeHtml(p.key) + '</div><div class="path">' + escapeHtml(p.value) + '</div></div></div>'
+  ).join('');
+}
+$('propRefresh').addEventListener('click', () => { state.props = []; loadProps(); });
+$('propQuery').addEventListener('input', debounce(loadProps, 350));
+
+// 终端
+$('termRun').addEventListener('click', runTerm);
+$('termCmd').addEventListener('keydown', (e) => { if (e.key === 'Enter') runTerm(); });
+async function runTerm() {
+  const cmd = $('termCmd').value.trim();
+  if (!cmd) return;
+  if (!state.device) { toast('未连接设备'); return; }
+  const out = $('termOut');
+  out.textContent += '\n$ ' + cmd + '\n';
+  const r = await api('/api/shell', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cmd }) });
+  out.textContent += (r.ok ? r.out : (r.err || '执行失败'));
+  out.scrollTop = out.scrollHeight;
+}
+
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+
+// 启动：探测状态
+(async () => {
+  const s = await api('/api/state');
+  if (s.device) { setConn(s.device); loadOverview(); }
+  else if (!s.adbOk) { toast('未检测到 adb：' + (s.adbErr || 'PATH 无 adb')); }
+})();
+</script>
+</body>
+</html>
