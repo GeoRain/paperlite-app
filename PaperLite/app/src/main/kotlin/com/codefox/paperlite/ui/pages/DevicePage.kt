@@ -46,7 +46,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
  * 系统属性、内存存储、可见进程。全部在 IO 线程采集，主线程只负责画。
  */
 @Composable
-fun DevicePage() {
+fun DevicePage(showHeader: Boolean = true) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
@@ -70,11 +70,13 @@ fun DevicePage() {
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 16.dp),
     ) {
-        item(key = "header") {
-            PageHeader(
-                title = "设备",
-                kicker = if (loading) "正在读取…" else "${groups.sumOf { it.rows.size }} 项信息",
-            )
+        if (showHeader) {
+            item(key = "header") {
+                PageHeader(
+                    title = "设备",
+                    kicker = if (loading) "正在读取…" else "${groups.sumOf { it.rows.size }} 项信息",
+                )
+            }
         }
 
         if (loading) {

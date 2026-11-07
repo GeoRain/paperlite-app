@@ -28,6 +28,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.codefox.paperlite.core.Channel
 import com.codefox.paperlite.core.ChannelManager
 import com.codefox.paperlite.core.Installer
+import com.codefox.paperlite.core.ZybosApi
 import com.codefox.paperlite.ui.components.ActionButton
 import com.codefox.paperlite.ui.components.BulletRow
 import com.codefox.paperlite.ui.components.InfoRow
@@ -49,11 +50,12 @@ import java.io.File
  * 安装通道主体。
  *
  * 输入 APK 路径 → 校验 → 按通道优先级尝试静默安装 → 失败回退到系统安装器。
- * 抽成 [InstallSection] 供首页分区直接内嵌，不再单独占一个侧边栏项。
+ * 默认自带页头；被「应用」页的分段标签内嵌时传 `showHeader = false`。
  */
 @Composable
 fun InstallPage(
     channels: ChannelManager,
+    showHeader: Boolean = true,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -126,16 +128,23 @@ fun InstallPage(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 4.dp, bottom = 12.dp),
     ) {
-        item(key = "header") {
-            PageHeader(
-                title = "安装",
-                kicker = "选包 → 解析 → 按通道安装 → 失败回退系统安装器",
-            )
+        if (showHeader) {
+            item(key = "header") {
+                PageHeader(
+                    title = "安装",
+                    kicker = "选包 → 解析 → 按通道安装 → 失败回退系统安装器",
+                )
+            }
         }
 
         item(key = "avail") {
             SectionCard(title = "可用通道") {
                 val c = LocalStatusColors.current
+                val authorizer by channels.settingsRef.installAuthorizer.collectAsStateWithLifecycle()
+                InfoRow("安装授权器", "${authorizer.title} · ${authorizer.desc}")
+                if (ZybosApi.isAvailable(context)) {
+                    InfoRow("作业帮系统服务", "可用（可无声安装）")
+                }
                 Channel.entries.forEach { ch ->
                     val st = states[ch]
                     if (st?.available == true) {

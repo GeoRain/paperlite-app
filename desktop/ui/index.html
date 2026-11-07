@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PaperLite PC</title>
+<style>
+:root{
+  --accent:#2f6bff; --accent-ink:#ffffff;
+  --bg:#f6f8fe; --surface:#ffffff; --surface-2:#eef3ff; --surface-3:#e3ebff;
+  --text:#12161f; --text-2:#4a5364; --text-3:#77808f;
+  --line:rgba(18,22,31,.10); --ok:#1c8a52; --warn:#a3610a; --danger:#b3261e;
+  --shadow:0 1px 2px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.06);
+  --r-lg:24px; --r-md:16px; --r-sm:10px;
+}
+html[data-theme="dark"]{
+  --accent:#9dbcff; --accent-ink:#0b1220;
+  --bg:#0e1116; --surface:#151a22; --surface-2:#1c2330; --surface-3:#222b3a;
+  --text:#e8ecf4; --text-2:#b3bccb; --text-3:#838d9d;
+  --line:rgba(232,236,244,.12); --ok:#5ed49a; --warn:#f0b866; --danger:#ff8a80;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.34);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font:15px/1.55 "Segoe UI","Microsoft YaHei UI",system-ui,-apple-system,sans-serif;
+  -webkit-font-smoothing:antialiased;overflow:hidden;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;display:block}
+
+.app{display:grid;grid-template-columns:236px 1fr;height:100vh}
+
+/* 侧边栏 */
+.side{
+  border-right:1px solid var(--line);background:var(--surface);
+  display:flex;flex-direction:column;padding:18px 14px 14px;gap:6px;
+}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 16px}
+.brand-mark{
+  width:36px;height:36px;border-radius:12px;background:linear-gradient(145deg,var(--accent),#8ab0ff);
+  display:grid;place-items:center;color:#fff;font-weight:700;font-size:15px;letter-spacing:.5px;
+}
+html[data-theme="dark"] .brand-mark{color:#0b1220}
+.brand-name{font-weight:650;font-size:16px;letter-spacing:.2px}
+.brand-sub{font-size:11.5px;color:var(--text-3);margin-top:-2px}
+
+.nav{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+.nav-item{
+  display:flex;align-items:center;gap:11px;padding:10px 12px;border:0;background:transparent;
+  border-radius:999px;color:var(--text-2);cursor:pointer;text-align:left;width:100%;
+  transition:background .16s ease,color .16s ease;
+}
+.nav-item:hover{background:var(--surface-2);color:var(--text)}
+.nav-item.is-active{background:var(--surface-3);color:var(--accent);font-weight:600}
+.nav-item span{font-size:14px}
+
+.side-foot{margin-top:auto;padding:10px 8px 0;border-top:1px solid var(--line);font-size:11.5px;color:var(--text-3);line-height:1.5}
+.side-foot b{color:var(--text-2);font-weight:600}
+
+/* 主区 */
+.main{display:flex;flex-direction:column;min-width:0}
+.top{
+  height:64px;flex:0 0 auto;display:flex;align-items:center;gap:12px;
+  padding:0 26px;border-bottom:1px solid var(--line);background:var(--surface);
+}
+.top h1{font-size:17px;font-weight:650;margin:0}
+.top .sub{font-size:12.5px;color:var(--text-3);margin-left:2px}
+.spacer{flex:1}
+.pill{
+  display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 14px;border-radius:999px;
+  background:var(--surface-2);color:var(--text-2);font-size:13px;border:1px solid transparent;
+  cursor:pointer;transition:background .16s,border-color .16s;
+}
+.pill:hover{background:var(--surface-3)}
+.pill.ghost{background:transparent;border-color:var(--line)}
+.pill .dot{width:7px;height:7px;border-radius:50%;background:var(--text-3)}
+.pill .dot.on{background:var(--ok);box-shadow:0 0 0 3px rgba(28,138,82,.15)}
+.pill .dot.off{background:var(--danger)}
+select.sel{
+  height:34px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);
+  padding:0 12px;font-size:13px;max-width:230px;
+}
+
+.content{padding:22px 26px 40px;overflow:auto;height:100%}
+.view{display:none;animation:in .22s ease both}
+.view.is-active{display:block}
+@keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+.card{
+  background:var(--surface);border-radius:var(--r-lg);padding:18px 20px;
+  box-shadow:var(--shadow);border:1px solid var(--line);margin-bottom:16px;
+}
+.card h2{margin:0 0 4px;font-size:15px;font-weight:650}
+.card .hint{margin:0 0 14px;font-size:12.5px;color:var(--text-3)}
+.grid{display:grid;gap:16px}
+.grid.two{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+
+.kv{display:grid;grid-template-columns:104px 1fr;gap:8px 12px;font-size:13.5px}
+.kv dt{color:var(--text-3)}
+.kv dd{margin:0;color:var(--text);word-break:break-all;font-variant-numeric:tabular-nums}
+
+.btn{
+  height:40px;padding:0 18px;border-radius:999px;border:1px solid transparent;cursor:pointer;
+  background:var(--surface-2);color:var(--text);font-weight:600;font-size:14px;
+  display:inline-flex;align-items:center;gap:8px;transition:filter .15s,background .15s;
+}
+.btn:hover{filter:brightness(.98)}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.outline{background:transparent;border-color:var(--line)}
+.btn.danger{background:transparent;border-color:var(--line);color:var(--danger)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.sm{height:32px;padding:0 12px;font-size:12.5px;font-weight:600}
+
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field label{font-size:12px;color:var(--text-3)}
+.field input,.field select,.field textarea{
+  height:40px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);
+  padding:0 12px;outline:none;transition:border-color .15s,background .15s;
+}
+.field textarea{height:auto;padding:10px 12px;resize:vertical;font-family:ui-monospace,Consolas,monospace;font-size:13px}
+.field input:focus,.field textarea:focus{border-color:var(--accent);background:var(--surface)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.row > .grow{flex:1;min-width:150px}
+
+.list{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.item{
+  display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--r-md);
+  background:var(--surface-2);border:1px solid transparent;
+}
+.item .name{font-weight:600;font-size:13.5px}
+.item .meta{font-size:12px;color:var(--text-3);margin-top:1px;word-break:break-all}
+.item .grow{flex:1;min-width:0}
+.tag{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--surface-3);color:var(--text-2)}
+.tag.on{background:rgba(28,138,82,.14);color:var(--ok)}
+.tag.off{background:rgba(179,38,30,.12);color:var(--danger)}
+
+.drop{
+  border:1.5px dashed var(--line);border-radius:var(--r-lg);padding:26px;text-align:center;
+  color:var(--text-3);cursor:pointer;transition:border-color .15s,background .15s;
+}
+.drop:hover,.drop.hot{border-color:var(--accent);background:var(--surface-2);color:var(--text-2)}
+.drop b{color:var(--text);display:block;margin-bottom:4px;font-size:14px}
+
+pre.out{
+  margin:12px 0 0;background:var(--surface-2);border-radius:var(--r-md);padding:14px;
+  font-family:ui-monospace,Consolas,"Cascadia Mono",monospace;font-size:12.5px;line-height:1.6;
+  color:var(--text-2);max-height:340px;overflow:auto;white-space:pre-wrap;word-break:break-all;
+}
+.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-2);cursor:pointer;user-select:none}
+.check input{width:16px;height:16px;accent-color:var(--accent)}
+.shot{width:100%;max-width:420px;border-radius:var(--r-md);border:1px solid var(--line);display:block;background:var(--surface-2)}
+.empty{padding:22px;text-align:center;color:var(--text-3);font-size:13px;background:var(--surface-2);border-radius:var(--r-md)}
+.toast{
+  position:fixed;left:50%;bottom:26px;transform:translate(-50%,12px);opacity:0;pointer-events:none;
+  background:#111826;color:#fff;padding:11px 18px;border-radius:999px;font-size:13px;
+  transition:opacity .2s,transform .2s;max-width:70vw;z-index:50;box-shadow:0 12px 28px rgba(0,0,0,.28)
+}
+html[data-theme="dark"] .toast{background:#e8ecf4;color:#0e1116}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.mono{font-family:ui-monospace,Consolas,monospace}
+.small{font-size:12px;color:var(--text-3)}
+.warnbox{border-left:3px solid var(--warn);background:var(--surface-2);padding:12px 14px;border-radius:0 var(--r-sm) var(--r-sm) 0;font-size:13px;color:var(--text-2)}
+@media (max-width:900px){
+  .app{grid-template-columns:72px 1fr}
+  .brand-name,.brand-sub,.nav-item span,.side-foot{display:none}
+  .nav-item{justify-content:center}
+  .brand{justify-content:center;padding:4px 0 14px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <div class="brand-mark">PL</div>
+      <div>
+        <div class="brand-name">PaperLite PC</div>
+        <div class="brand-sub">电脑端辅助软件</div>
+      </div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-foot">
+      <div id="adbState">正在检测 adb…</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="top">
+      <div>
+        <h1 id="viewTitle">概览</h1>
+      </div>
+      <div class="spacer"></div>
+      <select class="sel" id="deviceSel" title="当前设备"></select>
+      <button class="pill ghost" id="themeBtn" title="切换深浅色"></button>
+      <button class="pill" id="quitBtn" title="退出">退出</button>
+    </header>
+
+    <div class="content">
+      <!-- 概览 -->
+      <section class="view is-active" data-view="overview">
+        <div class="grid two">
+          <div class="card">
+            <h2>连接</h2>
+            <p class="hint">数据线插上就自动出现；无线调试要先配对再连接。</p>
+            <dl class="kv">
+              <dt>adb</dt><dd id="ovAdb" class="mono small">—</dd>
+              <dt>版本</dt><dd id="ovAdbVer">—</dd>
+              <dt>在线设备</dt><dd id="ovDevices">—</dd>
+              <dt>当前设备</dt><dd id="ovSerial" class="mono">—</dd>
+            </dl>
+            <div class="row" style="margin-top:16px">
+              <button class="btn outline" id="ovRefresh">重新检测</button>
+              <button class="btn outline" id="ovWake">点亮屏幕</button>
+            </div>
+          </div>
+          <div class="card">
+            <h2>设备信息</h2>
+            <p class="hint">来自 getprop，跟手机「关于手机」里的一致。</p>
+            <dl class="kv" id="ovInfo">
+              <dt>型号</dt><dd>—</dd>
+            </dl>
+          </div>
+        </div>
+        <div class="warnbox">
+          电脑端只是辅助：手机上的提权、静默安装、Shizuku 启动都在手机端完成。
+          这里能做的是连设备、装包、执行 shell、看截图。
+        </div>
+      </section>
+
+      <!-- 设备 -->
+      <section class="view" data-view="devices">
+        <div class="card">
+          <h2>设备列表</h2>
+          <p class="hint">adb devices -l 的实时结果。</p>
+          <div class="list" id="devList"></div>
+        </div>
+        <div class="grid two">
+          <div class="card">
+            <h2>无线连接</h2>
+            <p class="hint">手机与电脑在同一个 Wi-Fi，手机已开启无线调试。</p>
+            <div class="row">
+              <div class="field grow"><label>地址</label><input id="connHost" placeholder="192.168.1.23:5555"></div>
+              <button class="btn primary" id="connBtn">连接</button>
+            </div>
+          </div>
+          <div class="card">
+            <h2>首次配对</h2>
+            <p class="hint">无线调试 → 使用配对码配对设备，把那一页的两个数填进来。</p>
+            <div class="row">
+              <div class="field grow"><label>配对地址</label><input id="pairHost" placeholder="192.168.1.23:37125"></div>
+              <div class="field" style="width:120px"><label>配对码</label><input id="pairCode" placeholder="6 位" inputmode="numeric" maxlength="6"></div>
+              <button class="btn primary" id="pairBtn">配对</button>
+            </div>
+            <div class="row" style="margin-top:12px">
+              <button class="btn outline sm" id="mdnsBtn">扫描局域网服务</button>
+            </div>
+            <pre class="out" id="pairOut" hidden></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- 安装 -->
+      <section class="view" data-view="install">
+        <div class="card">
+          <h2>安装应用</h2>
+          <p class="hint">选一个 APK，直接 adb install -r。</p>
+          <div class="drop" id="apkDrop">
+            <b>把 APK 拖到这里</b>
+            <span>或者点击选择文件</span>
+            <input type="file" id="apkInput" accept=".apk" hidden>
+          </div>
+          <div class="row" style="margin-top:14px">
+            <div class="item grow" id="apkPicked" hidden>
+              <div class="grow">
+                <div class="name" id="apkName">—</div>
+                <div class="meta" id="apkMeta">—</div>
+              </div>
+            </div>
+          </div>
+          <div class="row" style="margin-top:12px">
+            <label class="check"><input type="checkbox" id="optGrant" checked>安装时授予全部运行时权限</label>
+            <label class="check"><input type="checkbox" id="optDowngrade">允许版本降级</label>
+          </div>
+          <div class="row" style="margin-top:14px">
+            <button class="btn primary" id="installBtn" disabled>开始安装</button>
+            <button class="btn outline" id="pushBtn" disabled>推到手机 Download</button>
+          </div>
+          <pre class="out" id="installOut" hidden></pre>
+        </div>
+      </section>
+
+      <!-- 终端 -->
+      <section class="view" data-view="terminal">
+        <div class="card">
+          <h2>Shell</h2>
+          <p class="hint">adb shell 的原文输出。Ctrl+Enter 执行，↑ 翻历史。</p>
+          <div class="row">
+            <div class="field grow"><label>命令</label><input id="cmdInput" placeholder="pm list packages -3" class="mono"></div>
+            <button class="btn primary" id="cmdRun">执行</button>
+            <button class="btn outline" id="cmdClear">清空</button>
+          </div>
+          <pre class="out" id="cmdOut">等待命令…</pre>
+        </div>
+      </section>
+
+      <!-- 截图 -->
+      <section class="view" data-view="shot">
+        <div class="card">
+          <h2>截屏</h2>
+          <p class="hint">exec-out screencap -p，不落手机存储。</p>
+          <div class="row" style="margin-bottom:14px">
+            <button class="btn primary" id="shotBtn">截一张</button>
+            <label class="check"><input type="checkbox" id="shotAuto">每 3 秒刷新</label>
+            <a class="btn outline" id="shotSave" download="paperlite-shot.png" href="#">保存图片</a>
+          </div>
+          <img class="shot" id="shotImg" alt="设备截图" hidden>
+          <div class="empty" id="shotEmpty">还没有截图</div>
+        </div>
+      </section>
+
+      <!-- 应用 -->
+      <section class="view" data-view="apps">
+        <div class="card">
+          <h2>第三方应用</h2>
+          <p class="hint">pm list packages -3。卸载走 adb uninstall，卸载失败会原样回显。</p>
+          <div class="row" style="margin-bottom:12px">
+            <button class="btn outline" id="appsRefresh">刷新列表</button>
+            <span class="small" id="appsCount"></span>
+          </div>
+          <div class="list" id="appsList"></div>
+        </div>
+      </section>
+
+      <!-- 日志 -->
+      <section class="view" data-view="logs">
+        <div class="card">
+          <h2>Logcat</h2>
+          <p class="hint">只取最后 N 行，不跟流，避免刷屏。</p>
+          <div class="row" style="margin-bottom:12px">
+            <div class="field" style="width:140px">
+              <label>行数</label>
+              <select id="logLines"><option>200</option><option selected>400</option><option>800</option><option>1500</option></select>
+            </div>
+            <button class="btn primary" id="logBtn">拉一次</button>
+          </div>
+          <pre class="out" id="logOut">等待拉取…</pre>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const ICONS = {
+  overview:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 10v10h14V10"/>',
+  devices:'<rect x="6" y="2.5" width="12" height="19" rx="3"/><path d="M10.5 18.5h3"/>',
+  install:'<path d="M12 3v11"/><path d="m7.5 10 4.5 4.5 4.5-4.5"/><path d="M4 20h16"/>',
+  terminal:'<rect x="3" y="4" width="18" height="16" rx="3"/><path d="m7.5 9 3 3-3 3"/><path d="M13 15h4"/>',
+  shot:'<rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="12" cy="12" r="3.2"/>',
+  apps:'<rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/>',
+  logs:'<path d="M5 4h14v16H5z"/><path d="M8.5 8h7M8.5 12h7M8.5 16h4"/>'
+};
+const VIEWS = [
+  ['overview','概览','overview'],
+  ['devices','设备','devices'],
+  ['install','安装','install'],
+  ['terminal','终端','terminal'],
+  ['shot','截图','shot'],
+  ['apps','应用','apps'],
+  ['logs','日志','logs']
+];
+const TITLES = Object.fromEntries(VIEWS.map(v=>[v[0],v[1]]));
+
+const $ = s => document.querySelector(s);
+const el = (tag, cls, html) => { const n=document.createElement(tag); if(cls) n.className=cls; if(html!=null) n.innerHTML=html; return n; };
+const esc = s => String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+let state = {devices:[], serial:'', adb:'', adbVersion:''};
+let current = 'overview';
+
+/* ---------- 基础 ---------- */
+async function api(path, body){
+  const res = await fetch(path, body===undefined ? {} : {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  const ct = res.headers.get('Content-Type')||'';
+  if(!ct.includes('json')) return {ok:res.ok};
+  return res.json();
+}
+let toastTimer;
+function toast(msg){
+  const t=$('#toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'), 2600);
+}
+function show(id, text){ const n=$(id); if(!n) return; n.hidden=false; n.textContent=text; }
+function setTheme(mode){
+  document.documentElement.dataset.theme = mode;
+  localStorage.setItem('pl-theme', mode);
+  $('#themeBtn').textContent = mode==='dark' ? '浅色' : '深色';
+}
+function serial(){ return state.serial || ''; }
+
+/* ---------- 导航 ---------- */
+function buildNav(){
+  const nav = $('#nav'); nav.innerHTML='';
+  VIEWS.forEach(([key,label,icon])=>{
+    const b = el('button','nav-item', `<svg viewBox="0 0 24 24">${ICONS[icon]}</svg><span>${label}</span>`);
+    b.dataset.key = key;
+    b.onclick = ()=> selectView(key);
+    nav.appendChild(b);
+  });
+}
+function selectView(key){
+  current = key;
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('is-active', n.dataset.key===key));
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('is-active', v.dataset.view===key));
+  $('#viewTitle').textContent = TITLES[key] || '';
+  if(key==='apps' && !$('#appsList').children.length) loadApps();
+  if(key==='shot' && !$('#shotImg').src) shot();
+}
+
+/* ---------- 设备状态 ---------- */
+function renderDevices(){
+  const sel = $('#deviceSel');
+  const list = state.devices || [];
+  if(!list.length){
+    sel.innerHTML = '<option value="">没有设备</option>';
+    $('#devList').innerHTML = '<div class="empty">没有检测到设备：插数据线、开 USB 调试，或者先用无线调试配对。</div>';
+  } else {
+    sel.innerHTML = list.map(d=>`<option value="${esc(d.serial)}" ${d.serial===state.serial?'selected':''}>${esc(d.model||d.serial)}${d.online?'':'（离线）'}</option>`).join('');
+    $('#devList').innerHTML = list.map(d=>`
+      <div class="item">
+        <svg viewBox="0 0 24 24">${ICONS.devices}</svg>
+        <div class="grow">
+          <div class="name">${esc(d.model||d.serial)}</div>
+          <div class="meta mono">${esc(d.serial)} · ${esc(d.device||'—')} · transport ${esc(d.transport||'—')}</div>
+        </div>
+        <span class="tag ${d.online?'on':'off'}">${d.online?'在线':esc(d.state)}</span>
+        <button class="btn outline sm" data-disconnect="${esc(d.serial)}">断开</button>
+      </div>`).join('');
+    document.querySelectorAll('[data-disconnect]').forEach(b=>{
+      b.onclick = async ()=>{
+        const r = await api('/api/disconnect',{host:b.dataset.disconnect});
+        toast(r.out||r.err||'已断开'); refresh();
+      };
+    });
+  }
+  $('#ovDevices').textContent = list.length ? `${list.filter(d=>d.online).length} 在线 / 共 ${list.length}` : '无';
+  $('#ovSerial').textContent = state.serial || '—';
+  $('#ovAdb').textContent = state.adb || '未找到 adb';
+  $('#ovAdbVer').textContent = state.adbVersion || '—';
+  $('#adbState').innerHTML = state.adb
+    ? `<b>adb 就绪</b><br>${esc(state.adbVersion||'')}`
+    : `<b style="color:var(--danger)">缺少 adb</b><br>把 platform-tools 放到 desktop/platform-tools 目录，或安装后重开本程序`;
+
+  const btn = $('#installBtn'); if(btn) btn.disabled = !pickedPath || !serial();
+  const push = $('#pushBtn'); if(push) push.disabled = !pickedPath || !serial();
+}
+
+async function loadDetail(){
+  if(!serial()){ $('#ovInfo').innerHTML = '<dt>型号</dt><dd>—</dd>'; return; }
+  const r = await api('/api/shell',{serial:serial(), cmd:'getprop ro.product.model; getprop ro.product.brand; getprop ro.build.version.release; getprop ro.build.version.sdk; getprop ro.product.cpu.abi; getprop ro.build.display.id'});
+  if(!r.ok) return;
+  const [model,brand,ver,sdk,abi,build] = (r.out||'').split('\n');
+  $('#ovInfo').innerHTML = `
+    <dt>型号</dt><dd>${esc(model||'—')}</dd>
+    <dt>品牌</dt><dd>${esc(brand||'—')}</dd>
+    <dt>系统</dt><dd>Android ${esc(ver||'—')}（API ${esc(sdk||'—')}）</dd>
+    <dt>架构</dt><dd>${esc(abi||'—')}</dd>
+    <dt>版本号</dt><dd class="mono small">${esc(build||'—')}</dd>`;
+}
+
+async function refresh(){
+  try{
+    const s = await api('/api/state');
+    if(!s || !s.ok) return;
+    state = s;
+    renderDevices();
+  }catch(e){ /* 服务已退出时安静 */ }
+}
+
+/* ---------- 安装 ---------- */
+let pickedPath = '';
+$('#apkDrop').onclick = ()=> $('#apkInput').click();
+$('#apkInput').onchange = e => { if(e.target.files[0]) uploadApk(e.target.files[0]); };
+['dragover','dragenter'].forEach(ev=>$('#apkDrop').addEventListener(ev, e=>{e.preventDefault();$('#apkDrop').classList.add('hot');}));
+['dragleave','drop'].forEach(ev=>$('#apkDrop').addEventListener(ev, e=>{e.preventDefault();$('#apkDrop').classList.remove('hot');}));
+$('#apkDrop').addEventListener('drop', e=>{
+  const f = e.dataTransfer.files[0]; if(f) uploadApk(f);
+});
+async function uploadApk(file){
+  $('#apkName').textContent = file.name;
+  $('#apkMeta').textContent = `正在上传 ${(file.size/1048576).toFixed(1)} MB…`;
+  $('#apkPicked').hidden = false;
+  const res = await fetch('/api/upload', {method:'POST', headers:{'X-File-Name': encodeURIComponent(file.name)}, body: file});
+  const j = await res.json();
+  if(j.ok){
+    pickedPath = j.path;
+    $('#apkMeta').textContent = `${(j.size/1048576).toFixed(1)} MB · 已就绪`;
+    toast('安装包已载入');
+  } else {
+    pickedPath = '';
+    $('#apkMeta').textContent = j.err || '上传失败';
+  }
+  renderDevices();
+}
+$('#installBtn').onclick = async ()=>{
+  if(!pickedPath) return toast('还没选安装包');
+  show('#installOut','安装中…');
+  $('#installBtn').disabled = true;
+  const r = await api('/api/install',{
+    serial:serial(), path:pickedPath,
+    grant:$('#optGrant').checked, downgrade:$('#optDowngrade').checked
+  });
+  $('#installBtn').disabled = false;
+  show('#installOut', (r.out||'') + (r.err? '\n'+r.err : ''));
+  toast(r.ok ? '安装成功' : '安装失败，看下面的输出');
+};
+$('#pushBtn').onclick = async ()=>{
+  if(!pickedPath) return;
+  show('#installOut','推送中…');
+  const r = await api('/api/push',{serial:serial(), path:pickedPath, remote:'/sdcard/Download/'});
+  show('#installOut', r.out || r.err || '完成');
+  toast(r.ok ? '已推到 Download' : '推送失败');
+};
+
+/* ---------- 终端 ---------- */
+const history = []; let hi = -1;
+async function runCmd(){
+  const cmd = $('#cmdInput').value.trim();
+  if(!cmd) return;
+  if(!serial()) return toast('没有在线的设备');
+  history.push(cmd); hi = history.length;
+  const out = $('#cmdOut');
+  out.textContent += `\n\n$ ${cmd}\n…`;
+  const r = await api('/api/shell',{serial:serial(), cmd});
+  out.textContent = out.textContent.replace(/\n…$/, '') + (r.out || r.err || '（无输出）');
+  out.scrollTop = out.scrollHeight;
+}
+$('#cmdRun').onclick = runCmd;
+$('#cmdClear').onclick = ()=>{ $('#cmdOut').textContent='等待命令…'; };
+$('#cmdInput').addEventListener('keydown', e=>{
+  if(e.key==='Enter' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); runCmd(); }
+  if(e.key==='ArrowUp' && hi>0){ hi--; $('#cmdInput').value = history[hi]||''; }
+  if(e.key==='ArrowDown'){ hi=Math.min(history.length, hi+1); $('#cmdInput').value = history[hi]||''; }
+});
+
+/* ---------- 截图 ---------- */
+let shotTimer = null;
+function shot(){
+  if(!serial()) return toast('没有在线的设备');
+  const img = $('#shotImg');
+  img.src = `/api/screencap?serial=${encodeURIComponent(serial())}&t=${Date.now()}`;
+  img.hidden = false;
+  $('#shotEmpty').hidden = true;
+  $('#shotSave').href = img.src;
+}
+$('#shotBtn').onclick = shot;
+$('#shotAuto').onchange = e=>{
+  clearInterval(shotTimer);
+  if(e.target.checked) shotTimer = setInterval(shot, 3000);
+};
+
+/* ---------- 应用 ---------- */
+async function loadApps(){
+  if(!serial()) return toast('没有在线的设备');
+  $('#appsList').innerHTML = '<div class="empty">读取中…</div>';
+  const r = await api('/api/apps?serial='+encodeURIComponent(serial()));
+  if(!r.ok){ $('#appsList').innerHTML = `<div class="empty">${esc(r.err||'读取失败')}</div>`; return; }
+  $('#appsCount').textContent = `${r.packages.length} 个`;
+  $('#appsList').innerHTML = r.packages.map(p=>`
+    <div class="item">
+      <div class="grow"><div class="name mono">${esc(p)}</div></div>
+      <button class="btn danger sm" data-uninstall="${esc(p)}">卸载</button>
+    </div>`).join('') || '<div class="empty">没有第三方应用</div>';
+  document.querySelectorAll('[data-uninstall]').forEach(b=>{
+    b.onclick = async ()=>{
+      b.disabled = true;
+      const res = await api('/api/uninstall',{serial:serial(), pkg:b.dataset.uninstall});
+      toast((res.out||res.err||'').slice(0,80));
+      b.disabled = false;
+    };
+  });
+}
+$('#appsRefresh').onclick = loadApps;
+
+/* ---------- 日志 ---------- */
+$('#logBtn').onclick = async ()=>{
+  if(!serial()) return toast('没有在线的设备');
+  $('#logOut').textContent = '拉取中…';
+  const r = await api('/api/logcat?serial='+encodeURIComponent(serial())+'&lines='+$('#logLines').value);
+  $('#logOut').textContent = r.out || r.err || '（空）';
+};
+
+/* ---------- 设备页动作 ---------- */
+$('#connBtn').onclick = async ()=>{
+  const host = $('#connHost').value.trim();
+  if(!host) return toast('填一下 IP:端口');
+  const r = await api('/api/connect',{host});
+  toast(r.out || r.err || '已发起连接'); refresh();
+};
+$('#pairBtn').onclick = async ()=>{
+  const r = await api('/api/pair',{host:$('#pairHost').value.trim(), code:$('#pairCode').value.trim()});
+  show('#pairOut', r.out || r.err);
+  toast(r.ok ? '配对成功' : '配对失败');
+};
+$('#mdnsBtn').onclick = async ()=>{
+  const r = await api('/api/mdns');
+  show('#pairOut', r.out || r.err || '（空）');
+};
+$('#ovRefresh').onclick = ()=>{ refresh(); loadDetail(); toast('已重新检测'); };
+$('#ovWake').onclick = async ()=>{
+  const r = await api('/api/wake',{serial:serial()});
+  toast(r.ok ? '已发送点亮指令' : (r.err||'失败'));
+};
+$('#quitBtn').onclick = async ()=>{
+  await api('/api/quit',{});
+  document.body.innerHTML = '<div style="display:grid;place-items:center;height:100vh;font:15px system-ui;color:#777">PaperLite PC 已退出，可以关掉这个窗口了。</div>';
+};
+$('#themeBtn').onclick = ()=> setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');
+$('#deviceSel').onchange = e=>{ state.serial = e.target.value; renderDevices(); loadDetail(); };
+
+/* ---------- 启动 ---------- */
+buildNav();
+setTheme(localStorage.getItem('pl-theme') || (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
+selectView('overview');
+refresh().then(loadDetail);
+setInterval(()=>{ refresh(); }, 3000);
+</script>
+</body>
+</html>

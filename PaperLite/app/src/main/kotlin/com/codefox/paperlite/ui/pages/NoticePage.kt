@@ -51,7 +51,10 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
  * - 页面顶部直接标明当前公告来自哪里，不含糊
  */
 @Composable
-fun NoticePage(settings: Settings) {
+fun NoticePage(
+    settings: Settings,
+    showHeader: Boolean = true,
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
@@ -78,19 +81,49 @@ fun NoticePage(settings: Settings) {
             modifier = Modifier.fillMaxSize(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 4.dp, bottom = 16.dp),
         ) {
-            item(key = "header") {
-                PageHeader(
-                    title = "公告",
-                    kicker = when {
-                        refreshing -> "正在更新"
-                        state.items.isEmpty() -> "暂无公告"
-                        state.source == Notice.Source.Remote -> "已更新 · ${state.items.size} 条"
-                        state.source == Notice.Source.LocalFallback -> "离线 · 显示本地公告"
-                        else -> "本地公告 · ${state.items.size} 条"
-                    },
-                    trailing = {
+            if (showHeader) {
+                item(key = "header") {
+                    PageHeader(
+                        title = "公告",
+                        kicker = when {
+                            refreshing -> "正在更新"
+                            state.items.isEmpty() -> "暂无公告"
+                            state.source == Notice.Source.Remote -> "已更新 · ${state.items.size} 条"
+                            state.source == Notice.Source.LocalFallback -> "离线 · 显示本地公告"
+                            else -> "本地公告 · ${state.items.size} 条"
+                        },
+                        trailing = {
+                            ActionButton(
+                                text = if (refreshing) "更新中…" else "更新",
+                                onClick = {
+                                    if (refreshing) return@ActionButton
+                                    refreshing = true
+                                    scope.launch {
+                                        state = Notice.refresh(context, settings)
+                                        refreshing = false
+                                        message = if (state.source == Notice.Source.Remote) {
+                                            "公告已更新"
+                                        } else {
+                                            "未拉到新公告，继续显示本地内容"
+                                        }
+                                    }
+                                },
+                            )
+                        },
+                    )
+                }
+            } else {
+                // 内嵌在设置页时不画页头，但仍要能从这一页手动更新
+                item(key = "header-compact") {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = Metrics.pad, end = Metrics.pad, top = 8.dp, bottom = 2.dp),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         ActionButton(
-                            text = if (refreshing) "更新中…" else "更新",
+                            text = if (refreshing) "更新中…" else "更新公告",
                             onClick = {
                                 if (refreshing) return@ActionButton
                                 refreshing = true
@@ -105,8 +138,8 @@ fun NoticePage(settings: Settings) {
                                 }
                             },
                         )
-                    },
-                )
+                    }
+                }
             }
 
             item(key = "source") {

@@ -2,6 +2,9 @@ package com.codefox.paperlite.core.channel
 
 import android.accessibilityservice.AccessibilityService
 import android.view.accessibility.AccessibilityEvent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import android.view.accessibility.AccessibilityNodeInfo
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -28,6 +31,14 @@ class PairingAccessibilityService : AccessibilityService() {
     override fun onInterrupt() = Unit
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        // 解锁事件：抄「无障碍管理器」的做法，设备一解锁就自动尝试提权
+        if (event != null &&
+            event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
+            isUnlockEvent(event)
+        ) {
+            triggerAutoRoot()
+        }
+
         val code = pendingCode ?: return
         if (event == null) return
         // 只在窗口内容变化时尝试
@@ -43,6 +54,28 @@ class PairingAccessibilityService : AccessibilityService() {
         // API 33 起 AccessibilityNodeInfo 不再需要手动 recycle，这里是老版本兜底
         @Suppress("DEPRECATION")
         runCatching { root.recycle() }
+    }
+
+    /** 判断是不是锁屏/开屏这类事件。 */
+    private fun isUnlockEvent(event: AccessibilityEvent): Boolean {
+        val type = event.className?.toString().orEmpty()
+        return type.contains("Keyguard", true) ||
+            type.contains("StatusBar", true) ||
+            type.contains("SystemUI", true) ||
+            type.contains("LockScreen", true)
+    }
+
+    /** 触发一次自动提权（失败不打扰用户，只写日志）。 */
+    private fun triggerAutoRoot() {
+        val now = System.currentTimeMillis()
+        if (now - lastAutoRootAt < 60_000L) return
+        lastAutoRootAt = now
+        val app = applicationContext
+        if (!com.codefox.paperlite.core.AutoRoot.autoRootOnUnlock(app)) return
+        val channels = (app as? com.codefox.paperlite.App)?.channels ?: return
+        CoroutineScope(Dispatchers.IO).launch {
+            com.codefox.paperlite.core.AutoRoot.onDeviceUnlocked(app, channels)
+        }
     }
 
     /** 递归查找 EditText 并填入配对码，随后点击确认按钮。 */
@@ -95,6 +128,8 @@ class PairingAccessibilityService : AccessibilityService() {
         }
         return null
     }
+
+    private var lastAutoRootAt = 0L
 
     companion object {
         @Volatile

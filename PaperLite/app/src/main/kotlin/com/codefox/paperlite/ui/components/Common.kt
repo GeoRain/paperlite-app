@@ -96,6 +96,10 @@ fun StatusPill(ok: Boolean, okText: String = "可用", badText: String = "不可
  * 这是「消除顶部白条」的正面替代：系统不再画 ActionBar，
  * 页面自己用这个组件画标题，并带上状态栏高度的手动内边距。
  * 相比旧版压低了字号与上下间距，避免首屏被标题吃掉。
+ *
+ * @param leading 标题左侧的插槽（返回按钮、图标等）。
+ *   加这个插槽是因为有些页面是「从上一级下钻进来的」，
+ *   标题左边得有个返回，否则用户不知道自己从哪来、也回不去。
  */
 @Composable
 fun PageHeader(
@@ -103,6 +107,7 @@ fun PageHeader(
     kicker: String? = null,
     subtitle: String? = null,
     topInset: Int = 0,
+    leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     Column(
@@ -119,6 +124,10 @@ fun PageHeader(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            if (leading != null) {
+                leading()
+                Spacer(Modifier.width(4.dp))
+            }
             Text(
                 text = title,
                 style = MiuixTheme.textStyles.title3,
@@ -142,6 +151,36 @@ fun PageHeader(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+    }
+}
+
+/**
+ * 圆形图标按钮（返回箭头这类）。
+ *
+ * 40dp 触控目标 + 半透明圆形底，与汉堡菜单的按钮同一套规格，
+ * 两个并排时视觉重量才对得上。
+ */
+@Composable
+fun IconButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    contentDescription: String? = null,
+    tint: Color? = null,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+) {
+    Box(
+        modifier = modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(50))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        androidx.compose.material3.Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = tint ?: MiuixTheme.colorScheme.onSurfaceContainerVariant,
+            modifier = Modifier.size(22.dp),
+        )
     }
 }
 
@@ -249,41 +288,7 @@ fun SectionCard(
     subtitle: String? = null,
     content: @Composable () -> Unit,
 ) {
-    top.yukonga.miuix.kmp.basic.Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = Metrics.pad, vertical = Metrics.gap / 2),
-        cornerRadius = 18.dp,
-        insideMargin = PaddingValues(vertical = 8.dp),
-        colors = top.yukonga.miuix.kmp.basic.CardColors(
-            color = MiuixTheme.colorScheme.surfaceContainerHigh,
-            contentColor = MiuixTheme.colorScheme.onSurfaceContainer,
-        ),
-    ) {
-        if (title != null) {
-            Column(modifier = Modifier.padding(horizontal = Metrics.inset, vertical = 3.dp)) {
-                Text(
-                    text = title,
-                    style = MiuixTheme.textStyles.title4,
-                    color = MiuixTheme.colorScheme.onSurfaceContainer,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (subtitle != null) {
-                    Spacer(Modifier.height(1.dp))
-                    Text(
-                        text = subtitle,
-                        style = MiuixTheme.textStyles.footnote2,
-                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-            Spacer(Modifier.height(3.dp))
-        }
-        content()
-    }
+    SkinCard(title = title, subtitle = subtitle, content = content)
 }
 
 /** 横向等间距排列的操作按钮组。 */
@@ -314,28 +319,17 @@ fun ActionButton(
     text: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    cornerRadius: Dp = 11.dp,
+    cornerRadius: Dp = 50.dp,
     tint: Color? = null,
     onClick: () -> Unit,
 ) {
-    // 配色统一由 paperButtonColors 计算：背景变了，文字色自动跟着变，
-    // 不会出现「红底红字」这种看不清的情况
-    val colors = com.codefox.paperlite.ui.theme.paperButtonColors(tint)
-    top.yukonga.miuix.kmp.basic.Button(
-        onClick = onClick,
+    SkinButton(
+        text = text,
         modifier = modifier,
         enabled = enabled,
-        cornerRadius = cornerRadius,
-        colors = colors,
-    ) {
-        Text(
-            text = text,
-            style = MiuixTheme.textStyles.footnote1,
-            color = colors.contentColor,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
+        tint = tint,
+        onClick = onClick,
+    )
 }
 
 /**
@@ -370,12 +364,12 @@ fun TextInput(
     } else {
         TextFieldLineLimits.MultiLine(minHeightInLines = 4, maxHeightInLines = 12)
     }
-    top.yukonga.miuix.kmp.basic.TextField(
+    SkinTextField(
         state = state,
-        modifier = modifier.fillMaxWidth(),
-        label = label.orEmpty(),
+        modifier = modifier,
+        label = label,
         enabled = enabled,
-        lineLimits = limiter,
+        singleLine = singleLine,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
     )
     LaunchedEffect(state) {
@@ -425,11 +419,10 @@ fun ToggleRow(
             }
         }
         Spacer(Modifier.width(10.dp))
-        top.yukonga.miuix.kmp.basic.Switch(
+        SkinSwitch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             enabled = enabled,
-            colors = com.codefox.paperlite.ui.theme.paperSwitchColors(),
         )
     }
 }
@@ -447,50 +440,13 @@ fun <T> SegmentedTabs(
     onSelect: (T) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = Metrics.pad, vertical = Metrics.gap / 2)
-            .clip(RoundedCornerShape(14.dp))
-            .background(MiuixTheme.colorScheme.surfaceContainerHighest)
-            .padding(3.dp),
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-    ) {
-        options.forEach { option ->
-            val active = option == selected
-            val container by animateColorAsState(
-                targetValue = if (active) MiuixTheme.colorScheme.primary else Color.Transparent,
-                animationSpec = tween(220),
-                label = "seg-container",
-            )
-            val content by animateColorAsState(
-                targetValue = if (active) {
-                    MiuixTheme.colorScheme.onPrimary
-                } else {
-                    MiuixTheme.colorScheme.onSurfaceContainerVariant
-                },
-                animationSpec = tween(220),
-                label = "seg-content",
-            )
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(11.dp))
-                    .background(container)
-                    .clickable { onSelect(option) }
-                    .padding(horizontal = 6.dp, vertical = 6.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = label(option),
-                    style = MiuixTheme.textStyles.footnote1,
-                    color = content,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
+    SkinSegmentedTabs(
+        options = options,
+        selected = selected,
+        label = label,
+        onSelect = onSelect,
+        modifier = modifier,
+    )
 }
 
 /** 一行紧凑的「标签 + 值」，用于首页概览。 */

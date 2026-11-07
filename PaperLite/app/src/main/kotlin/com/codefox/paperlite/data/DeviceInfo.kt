@@ -19,6 +19,10 @@ data class AppEntry(
     val suspended: Boolean,
     val uninstallBlocked: Boolean,
     val sizeBytes: Long,
+    /** 首次安装时间（对齐 InstallerX 的「按安装时间排序」）。 */
+    val installTime: Long = 0L,
+    /** 最近更新时间。 */
+    val updateTime: Long = 0L,
 )
 
 /** 设备信息分组。 */
@@ -110,16 +114,30 @@ object DeviceInfo {
         v
     }.getOrDefault("")
 
-    fun deviceCode(context: Context): String {
+    /**
+     * 本应用设备码。
+     *
+     * ## 为什么不能直接调 `Build.getSerial()`
+     *
+     * Android 10（API 29）起，`Build.getSerial()` 需要 `READ_PHONE_STATE`
+     * 权限，且对普通应用直接抛 `SecurityException`。本应用没有申请该权限
+     * （也不该为了一个展示用的设备码去申请），所以裸调用会让
+     * **整个设置页在第一次合成时闪退**——这正是「设置界面打不开」的原因。
+     *
+     * 这里改成：串号拿得到就用，拿不到就退回指纹与主板名，
+     * 整段再包一层兜底，任何机型都不会因为这一行把页面带走。
+     */
+    fun deviceCode(context: Context): String = runCatching {
+        val serial = runCatching { Build.getSerial() }.getOrNull().orEmpty()
         val raw = listOfNotNull(
-            Build.getSerial().takeIf { it.isNotBlank() && it != Build.UNKNOWN },
+            serial.takeIf { it.isNotBlank() && it != Build.UNKNOWN },
             Build.FINGERPRINT,
             Build.BOARD,
         ).joinToString("|")
         val digest = java.security.MessageDigest.getInstance("SHA-256")
             .digest(raw.toByteArray())
-        return digest.take(8).joinToString("") { "%02X".format(it) }
-    }
+        digest.take(8).joinToString("") { "%02X".format(it) }
+    }.getOrDefault("-")
 
     fun isZybDevice(): Boolean =
         prop("ro.product.brand").contains("zuoyebang", true) ||
@@ -228,6 +246,8 @@ object DeviceInfo {
                 enabled = ai?.enabled ?: true,
                 suspended = suspended,
                 uninstallBlocked = runCatching { isBlocked(name) }.getOrDefault(false),
+                installTime = runCatching { p.firstInstallTime }.getOrDefault(0L),
+                updateTime = runCatching { p.lastUpdateTime }.getOrDefault(0L),
                 // sourceDir 为空时 File("") 指向进程 cwd，会得到一个假的大小
                 sizeBytes = runCatching {
                     val dir = ai?.sourceDir

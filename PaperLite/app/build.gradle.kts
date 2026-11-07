@@ -1,8 +1,12 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+// 注意：不能写 java.util.Arrays —— Gradle 脚本里的 `java` 指的是 JavaPluginExtension
+import java.util.Arrays
 
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    // 应用商店要解析 F-Droid 索引，@Serializable 需要这个插件
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -14,8 +18,8 @@ android {
         // 设备所有者 / 无线调试配对 / 无障碍 都需要 29+
         minSdk = 29
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 9
+        versionName = "1.8"
     }
 
     androidResources {
@@ -78,6 +82,7 @@ dependencies {
     implementation(libs.compose.foundation)
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.graphics)
+    implementation(libs.androidx.compose.material3)
     debugImplementation(libs.compose.ui.tooling)
     implementation(libs.compose.ui.tooling.preview)
 
@@ -157,14 +162,23 @@ val compileAgentJava = tasks.register<JavaCompile>("compileAgentJava") {
     options.compilerArgs.add("-nowarn")
 }
 
-val dexAgent = tasks.register<Exec>("dexAgent") {
-    description = "把安装代理打成独立 dex（assets/agent/classes.dex）"
+// 注意：这里注册的是普通任务，不是 Exec。
+// 曾经写成 tasks.register<Exec>，但任务体只放在 doFirst 里、从未设置 commandLine，
+// Gradle 会在执行阶段试图启动一个「command null」的进程并一直挂死（构建停在 :app:dexAgent 不动）。
+val dexAgent = tasks.register("dexAgent") {
+    description = "把安装代理打成独立 dex，并同步到 src/main/assets/agent/classes.dex"
     dependsOn(compileAgentJava)
     val (d8Jar, javaHome) = findD8()
     val out = agentOutDir.get().asFile
     val classesDir = agentClassesDir
+    // 直接落到源集里：assets 走的是「普通资源目录」这条最稳的路，
+    // 不再依赖 sourceSets 追加目录 + 任务依赖的时序，避免出现
+    // 「dex 编出来了，但 APK 里没有 assets/agent/classes.dex」这种隐性失效
+    val assetsDir = layout.projectDirectory.dir("src/main/assets/agent").asFile
+    val assetDex = File(assetsDir, "classes.dex")
     inputs.dir(classesDir)
     outputs.dir(out)
+    outputs.file(assetDex)
     doFirst {
         out.deleteRecursively()
         out.mkdirs()
@@ -186,18 +200,93 @@ val dexAgent = tasks.register<Exec>("dexAgent") {
             environment("JAVA_HOME", javaHome)
             commandLine(cmd)
         }.result.get().assertNormalExitValue()
-        // d8 输出的是 classes.dex；放进 agent/ 子目录，运行时 CLASSPATH 指向它
+        // d8 输出的是 classes.dex
         val dexFile = File(out, "classes.dex")
         if (!dexFile.exists()) error("d8 没有产出 classes.dex")
         val agentDir = File(out, "agent")
         agentDir.mkdirs()
         dexFile.copyTo(File(agentDir, "classes.dex"), overwrite = true)
     }
+    doLast {
+        val produced = File(out, "agent/classes.dex")
+        if (!produced.exists()) error("d8 没有产出 classes.dex")
+        assetsDir.mkdirs()
+        // 内容没变就不动文件，避免每次都触发 assets 重新合并
+        val same = assetDex.exists() && assetDex.length() == produced.length() &&
+            runCatching { assetDex.readBytes().contentEquals(produced.readBytes()) }.getOrDefault(false)
+        if (!same) produced.copyTo(assetDex, overwrite = true)
+    }
 }
 
-/** 把打好的 agent dex 作为 assets 参与打包。 */
-android.sourceSets.getByName("main").assets.srcDir(agentOutDir.get().asFile.absolutePath)
-
-tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }.configureEach {
+// 打包前一定先把代理 dex 放好
+tasks.named("preBuild") {
     dependsOn(dexAgent)
+}
+
+/* ==========================================================================
+   DirtyFrag 载荷（libdfroot.so / libbootstrap.so）的路径改写
+   --------------------------------------------------------------------------
+   这两个二进制来自 DFRoot（GPL-2.0），里面把作者自己的应用目录写死了：
+
+       /data/user_de/0/df.root/bootstrap
+       /data/user_de/0/df.root/ksud
+       /data/user_de/0/df.root/shared_prefs/dfroot.xml
+
+   本应用包名不同，且那些槽位放不下新路径，所以统一改写到
+   /data/local/tmp/ 下（adb shell / root 可写，载荷以 uid 0 执行时可读）。
+
+   原始文件放在 src/main/dfroot/（不改），改写后的产物落到
+   src/main/assets/dfroot/，由 assets 源集直接打进 APK。
+   ========================================================================== */
+
+val dfrootSrcDir = layout.projectDirectory.dir("src/main/dfroot")
+val dfrootAssetDir = layout.projectDirectory.dir("src/main/assets/dfroot")
+
+val patchDfrootAssets = tasks.register("patchDfrootAssets") {
+    description = "把 DirtyFrag 载荷里的硬编码路径改写到 /data/local/tmp"
+    inputs.dir(dfrootSrcDir)
+    outputs.dir(dfrootAssetDir)
+    doLast {
+        val outDir = dfrootAssetDir.asFile
+        outDir.mkdirs()
+        // 定长槽位替换表：原路径 → 新路径
+        val replacements = listOf(
+            "/data/user_de/0/df.root/bootstrap" to "/data/local/tmp/dfroot_boot",
+            "/data/user_de/0/df.root/ksud" to "/data/local/tmp/dfroot_ksud",
+            "/data/user_de/0/df.root/shared_prefs/dfroot.xml" to "/data/local/tmp/dfroot.xml",
+        )
+        listOf("libdfroot.so", "libbootstrap.so").forEach { name ->
+            val src = dfrootSrcDir.file(name).asFile
+            if (!src.exists()) {
+                error("缺少 DirtyFrag 载荷：$src")
+            }
+            val bytes = src.readBytes()
+            val patched = bytes.copyOf()
+            replacements.forEach { (from, to) ->
+                val srcBytes = from.toByteArray(Charsets.US_ASCII)
+                val dstBytes = to.toByteArray(Charsets.US_ASCII)
+                require(dstBytes.size <= srcBytes.size) { "替换路径过长：$to" }
+                var i = 0
+                while (i >= 0 && i <= patched.size - srcBytes.size) {
+                    var hit = true
+                    for (j in srcBytes.indices) {
+                        if (patched[i + j] != srcBytes[j]) { hit = false; break }
+                    }
+                    if (hit) {
+                        Arrays.fill(patched, i, i + srcBytes.size, 0.toByte())
+                        System.arraycopy(dstBytes, 0, patched, i, dstBytes.size)
+                        i += srcBytes.size
+                    } else {
+                        i++
+                    }
+                }
+            }
+            outDir.resolve(name).writeBytes(patched)
+            logger.lifecycle("已改写 DirtyFrag 载荷路径：$name")
+        }
+    }
+}
+
+tasks.named("preBuild") {
+    dependsOn(patchDfrootAssets)
 }

@@ -5,7 +5,8 @@ import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.net.Uri
 import android.os.Build
-import com.codefox.paperlite.core.channel.ShellResult
+import com.codefox.paperlite.data.InstallAuthorizer
+import com.codefox.paperlite.data.InstallErrors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -55,49 +56,152 @@ class Installer(
         if (parsed == null) {
             return Outcome(false, "无", "无法解析安装包，可能已损坏")
         }
+        channels.log("安装开始：${parsed.label} ${parsed.packageName} v${parsed.versionName}")
 
-        val states = channels.states.value
+        val notes = ArrayList<String>(4)
 
-        // 通道①：app_process 安装代理（原版同款，优先级最高）
-        if (states[Channel.Root]?.available == true || states[Channel.Wireless]?.available == true) {
-            val r = installViaAgent(apk)
-            if (r != null) return r
-        }
+        // 安装授权器：决定「以谁的身份执行安装」。
+        // 概念与 InstallerX 的 Authorizer 一致，默认 Auto（按优先级依次尝试）。
+        val authorizer = channels.settingsRef.installAuthorizer.value
+        channels.log("安装：授权器 = ${authorizer.title}")
 
-        // 通道②：本地 pm install -r -d（原版同款）
-        if (states[Channel.Root]?.available == true) {
-            val r = channels.execAsShell("pm install -r -d \"${apk.absolutePath}\"")
-            if (r.ok && r.output.contains("Success", true)) {
-                return Outcome(true, "本地 pm install", "已通过 pm install -r 静默安装")
+        // 通道⓪：作业帮 / AIbangOS 系统服务静默安装。
+        // 放在最前面是有理由的——这条链路来自 InstallerX 的 Birchua 授权器，
+        // 它直接调系统服务 `ZybosSysApiManager.silentInstallApk`，
+        // 既不要 root，也不要用户确认，还会顺手解除 PadMS 的安装拦截；
+        // 在作业帮设备上，它是唯一能做到「真·无声安装」的路。
+        if (authorizer == InstallAuthorizer.Zybos || authorizer == InstallAuthorizer.Auto) {
+            if (ZybosApi.isAvailable(context)) {
+                val r = ZybosApi.silentInstall(context, apk, parsed.packageName)
+                if (r.success) {
+                    return Outcome(true, "作业帮系统服务", r.message)
+                }
+                notes += "作业帮系统服务：${r.message}"
+                channels.log("安装：作业帮系统服务未成功 → ${r.message}")
+            } else if (authorizer == InstallAuthorizer.Zybos) {
+                notes += "作业帮系统服务：设备不支持"
+                channels.log("安装：作业帮系统服务：设备不支持")
             }
         }
 
-        // 通道③：无线调试会话推包安装（原版同款）
-        if (states[Channel.Wireless]?.available == true) {
-            val r = pushAndInstall(apk)
-            if (r?.ok == true && !r.output.contains("Failure")) {
-                return Outcome(true, "无线调试会话", "已通过无线调试会话安装")
+        // 指定了「只要系统安装器」时直接拉起系统界面，不做任何静默尝试
+        if (authorizer == InstallAuthorizer.System) {
+            val launched = launchSystemInstaller(apk)
+            return if (launched) {
+                Outcome(false, "系统包安装器", "已拉起系统安装界面，请手动确认", true)
+            } else {
+                Outcome(false, "系统包安装器", "无法拉起系统安装界面")
             }
         }
 
-        // 通道④：设备所有者静默会话
-        if (states[Channel.DeviceOwner]?.available == true) {
-            val ok = silentInstallViaOwner(apk)
-            if (ok) return Outcome(true, "设备所有者", "已通过设备所有者静默安装")
+        // 是否真的能拿到 shell 身份，必须**现场探测**，不能只看缓存里的通道状态：
+        // 应用重启后 adb 会话是空的，而无线调试端口还记在设置里，
+        // 状态却仍停在「不可用」——于是安装直接掉到系统安装器，
+        // 表现就是「明明配对过，静默安装却一直失败」。
+        val wantShell = authorizer == InstallAuthorizer.Auto ||
+            authorizer == InstallAuthorizer.Root ||
+            authorizer == InstallAuthorizer.Shell
+        val shellReady = if (wantShell) channels.acquireShellIdentity() else false
+        if (wantShell && !shellReady) {
+            channels.log("安装：当前没有 root / adb shell 身份，静默通道不可用")
         }
 
-        // 通道⑤：拉起系统包安装器
-        val launched = launchSystemInstaller(apk)
-        if (launched) {
+        // 目标 APK 放到 shell 读得到的位置（原路径本就可读时直接用原路径）
+        val staged = if (shellReady) stageTargetApk(apk) else null
+        if (shellReady && staged == null) notes += "目标 APK 无法放到 shell 可读位置"
+
+        // 通道①：pm install。
+        // shell(uid 2000) 本身就带 INSTALL_PACKAGES，pm install 不会弹确认框，
+        // 这是最稳的一条路，失败原因也最具体（INSTALL_FAILED_* 会原样带出来）。
+        //
+        // 附加参数来自「安装选项」（对齐 InstallerX 的 config_* 开关）：
+        // 允许降级 -d、允许测试包 -t、多用户 --user all、声明安装者 -i。
+        val options = channels.settingsRef.installOptions.value
+        if (staged != null) {
+            val r = channels.execAsShell(
+                "pm install${options.pmFlags()} \"$staged\"",
+                timeoutMs = 240_000L,
+            )
+            if (r.output.contains("Success", true)) {
+                cleanupStaged(apk, staged)
+                if (options.autoDelete) {
+                    runCatching { apk.delete() }
+                    channels.log("安装：已按选项删除安装包 ${apk.name}")
+                }
+                return Outcome(true, "pm install", "已通过 pm install 静默安装")
+            }
+            val why = brief(r)
+            notes += "pm install：$why"
+            channels.log("安装：pm install 未成功 → $why")
+            // 把 INSTALL_FAILED_* 翻译成中文，别让用户盯着英文常量
+            InstallErrors.explain(r.output)?.let {
+                notes += it
+                channels.log("安装：$it")
+            }
+        }
+
+        // 通道②：app_process 安装代理。
+        // 关键点：失败必须继续往下走，而不是直接 return ——
+        // 代理在部分 ROM 上会因 SELinux / systemMain 失败，
+        // 但同样的包用 pm install 反而能装上。
+        if (staged != null) {
+            val r = installViaAgent(apk, staged)
+            if (r != null && r.success) {
+                cleanupStaged(apk, staged)
+                return r
+            }
+            if (r != null) notes += "安装代理：${r.message}"
+        }
+
+        cleanupStaged(apk, staged)
+
+        // 通道③：设备所有者静默会话
+        if ((authorizer == InstallAuthorizer.Auto || authorizer == InstallAuthorizer.Owner) &&
+            channels.states.value[Channel.DeviceOwner]?.available == true
+        ) {
+            if (silentInstallViaOwner(apk)) {
+                return Outcome(true, "设备所有者", "已通过设备所有者静默安装")
+            }
+            notes += "设备所有者：会话提交失败"
+        }
+
+        // 通道④：拉起系统包安装器
+        val detail = if (notes.isEmpty()) "" else "（${notes.joinToString("；")}）"
+        if (launchSystemInstaller(apk)) {
             return Outcome(
                 success = false,
                 via = "系统包安装器",
-                message = "已拉起系统安装界面，请手动确认",
+                message = "已拉起系统安装界面，请手动确认$detail",
                 requiresUserAction = true,
             )
         }
-        return Outcome(false, "全部", "所有安装通道均失败，请看运行日志")
+        return Outcome(false, "全部", "所有安装通道均失败$detail，详见运行日志")
     }
+
+    /** 把失败结果压成一行可读的原因。 */
+    private fun brief(r: ExecResult, limit: Int = 160): String {
+        val text = r.output.ifBlank { r.error.orEmpty() }
+        if (text.isBlank()) return r.error ?: "无输出"
+        val lines = text.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toList()
+        val key = lines.firstOrNull {
+            it.contains("Failure", true) ||
+                it.contains("Exception", true) ||
+                it.contains("Error", true) ||
+                it.contains("denied", true)
+        } ?: lines.lastOrNull()
+        return (key ?: "无输出").take(limit)
+    }
+
+    /** 清掉临时暂存的 APK（原路径不删）。 */
+    private suspend fun cleanupStaged(apk: File, staged: String?) {
+        if (staged == null || staged == apk.absolutePath) return
+        runCatching { channels.execAsShell("rm -f \"$staged\" 2>/dev/null", timeoutMs = 15_000L) }
+    }
+
+    /** 安装代理的 dex 是否真的被打进了 assets。 */
+    private fun agentPackaged(): Boolean = runCatching {
+        context.assets.open("agent/classes.dex").use { it.read() >= 0 }
+    }.getOrDefault(false)
 
     /**
      * 通道①：用 app_process 安装代理完成静默安装。
@@ -129,52 +233,55 @@ class Installer(
      *
      * @return 成功返回 Outcome，失败返回 null（继续走下一通道）
      */
-    private suspend fun installViaAgent(apk: File): Outcome? = withContext(Dispatchers.IO) {
-        // 目标 APK 必须让目标机上的 app_process 读得到
-        val target = stageTargetApk(apk) ?: run {
-            channels.log("安装代理：目标 APK 无法复制到可读位置，跳过")
-            return@withContext null
-        }
-        // 代理 dex 要先出现在目标机上（已打包成与原版同构的 zip）
-        val agentZip = stageAgentDex() ?: run {
-            channels.log("安装代理：代理包推送失败，跳过")
-            return@withContext null
-        }
+    private suspend fun installViaAgent(apk: File, target: String): Outcome? =
+        withContext(Dispatchers.IO) {
+            // assets 里没有代理 dex 时这条通道根本跑不起来，
+            // 直接给一条明确日志，而不是让用户看到「ClassNotFoundException」这种间接现象
+            if (!agentPackaged()) {
+                channels.log("安装代理：assets/agent/classes.dex 缺失（打包时没有生成），跳过该通道")
+                return@withContext null
+            }
+            // 代理 dex 要先出现在目标机上（已打包成与原版同构的 zip）
+            val agentZip = stageAgentDex() ?: run {
+                channels.log("安装代理：代理包推送失败，跳过")
+                return@withContext null
+            }
 
-        val cmd = buildString {
-            append("CLASSPATH='$agentZip' app_process /system/bin ")
-            append("com.codefox.paperlite.core.install.InstallAgent ")
-            append("'$target' 2>&1")
-        }
-        channels.log("安装代理：$cmd")
-        // 必须以 shell 身份执行：app_process 要 attach system_server，
-        // 应用自己的 uid 会被 SELinux 拦掉
-        val r = channels.execAsShell(cmd, timeoutMs = 120_000L)
-        channels.execAsShell("rm -f '$agentZip' 2>/dev/null", timeoutMs = 15_000L)
-        if (target != apk.absolutePath) {
-            channels.execAsShell("rm -f '$target' 2>/dev/null", timeoutMs = 15_000L)
-        }
+            val cmd = buildString {
+                append("CLASSPATH='$agentZip' app_process /system/bin ")
+                append("com.codefox.paperlite.core.install.InstallAgent ")
+                append("'$target' 2>&1")
+            }
+            channels.log("安装代理：CLASSPATH=$agentZip app_process … InstallAgent '$target'")
+            // 必须以 shell 身份执行：app_process 要 attach system_server，
+            // 应用自己的 uid 会被 SELinux 拦掉
+            val r = channels.execAsShell(cmd, timeoutMs = 120_000L)
+            channels.execAsShell("rm -f '$agentZip' 2>/dev/null", timeoutMs = 15_000L)
 
-        val out = r.output
-        when {
-            out.contains("INSTALL_AGENT_OK") ->
-                Outcome(true, "安装代理", "已通过 app_process 安装代理静默安装")
-            out.contains("INSTALL_AGENT_TIMEOUT") ->
-                Outcome(false, "安装代理", "安装代理超时，30 秒内未装上")
-            out.contains("INSTALL_AGENT_FAIL") -> {
-                val line = out.lineSequence().firstOrNull { it.contains("INSTALL_AGENT_FAIL") }?.trim()
-                Outcome(false, "安装代理", "安装被系统拒绝：${line ?: ""}")
-            }
-            out.contains("INSTALL_AGENT_ERROR") -> {
-                val line = out.lineSequence().firstOrNull { it.contains("INSTALL_AGENT_ERROR") }?.trim()
-                Outcome(false, "安装代理", "安装代理报错：${line ?: ""}")
-            }
-            else -> {
-                channels.log("安装代理未返回明确结果：${out.take(200)}")
-                null
+            val out = r.output
+            when {
+                out.contains("INSTALL_AGENT_OK") ->
+                    Outcome(true, "安装代理", "已通过 app_process 安装代理静默安装")
+                out.contains("INSTALL_AGENT_TIMEOUT") ->
+                    Outcome(false, "安装代理", "安装代理超时，30 秒内未装上")
+                out.contains("INSTALL_AGENT_FAIL") -> {
+                    val line = out.lineSequence().firstOrNull { it.contains("INSTALL_AGENT_FAIL") }?.trim()
+                    Outcome(false, "安装代理", "安装被系统拒绝：${line ?: ""}")
+                }
+                out.contains("INSTALL_AGENT_ERROR") -> {
+                    val line = out.lineSequence().firstOrNull { it.contains("INSTALL_AGENT_ERROR") }?.trim()
+                    Outcome(false, "安装代理", "安装代理报错：${line ?: ""}")
+                }
+                !r.ok && out.isBlank() -> {
+                    channels.log("安装代理：命令无输出（${r.error ?: "退出码异常"}）")
+                    Outcome(false, "安装代理", r.error ?: "命令无输出")
+                }
+                else -> {
+                    channels.log("安装代理未返回明确结果：${out.take(200)}")
+                    null
+                }
             }
         }
-    }
 
     /**
      * 把安装代理推到目标机，返回它在目标机上的**路径**。
@@ -322,10 +429,18 @@ class Installer(
      */
     suspend fun diagnose(apk: File): String = withContext(Dispatchers.IO) {
         if (!apk.exists()) return@withContext "APK 不存在：${apk.absolutePath}"
+        val hasAgent = agentPackaged()
         val target = stageTargetApk(apk)
             ?: return@withContext "无法把目标 APK 放到 shell 可读位置"
+        if (!hasAgent) {
+            return@withContext buildString {
+                appendLine("代理资产：缺失（assets/agent/classes.dex 没有打进 APK）")
+                appendLine("目标 APK：$target")
+                appendLine("结论：安装代理通道不可用，需要重新打包（preBuild 会生成该 dex）。")
+            }
+        }
         val agentZip = stageAgentDex()
-            ?: return@withContext "无法把安装代理包推到目标机"
+            ?: return@withContext "无法把安装代理包推到目标机（通道可能不是 shell 身份）"
         val zipInfo = channels.execAsShell(
             "ls -l '$agentZip' 2>&1 | head -1",
             timeoutMs = 15_000L,
@@ -335,6 +450,7 @@ class Installer(
         val r = channels.execAsShell(cmd, timeoutMs = 120_000L)
         channels.execAsShell("rm -f '$agentZip' 2>/dev/null", timeoutMs = 15_000L)
         buildString {
+            appendLine("代理资产：已打包")
             appendLine("命令：$cmd")
             appendLine("通道：${r.via}")
             appendLine("退出码：${if (r.ok) 0 else 1}")
@@ -425,24 +541,11 @@ class Installer(
         }
     }
 
-    /** 推包到 /data/local/tmp 后 pm install。 */
-    private suspend fun pushAndInstall(apk: File): ShellResult? = withContext(Dispatchers.IO) {
-        val remote = "/data/local/tmp/pl_${System.currentTimeMillis()}.apk"
-        val pushed = pushFile(apk, remote)
-        if (!pushed) {
-            channels.log("推包失败")
-            return@withContext null
-        }
-        val r = channels.execAsShell("pm install -r -d \"$remote\"")
-        channels.execAsShell("rm -f \"$remote\" 2>/dev/null", timeoutMs = 15_000L)
-        r.let { ShellResult("pm install", it.output, if (it.ok) 0 else 1, it.error) }
-    }
-
     /**
      * 用 shell 流把本地文件写进设备。
      *
      * 两处硬限制，都是为了避免「装个大包就把应用拖死」：
-     * - 单次推包最多 64MB，超过直接放弃并回退到系统安装器
+     * - 单次推包最多 256MB，超过直接放弃并回退到系统安装器
      * - 分块数有上限；并且一旦连续两次分块失败就中止，
      *   而不是一直循环到文件读完（原来的写法在通道半死时会空转几十次 exec）
      */
@@ -499,6 +602,11 @@ class Installer(
                 } else {
                     consecutiveFailures = 0
                 }
+                // 只有进度才是有效信息，别把每个分块的 base64 都塞进日志
+                if (chunks % 32 == 0) {
+                    val mb = chunks.toLong() * chunk / 1024 / 1024
+                    channels.log("推包进度 ${mb}MB / ${size / 1024 / 1024}MB")
+                }
             }
         }
         val remoteSize = channels.execAsShell("wc -c < $remote", timeoutMs = 20_000L)
@@ -538,9 +646,23 @@ class Installer(
     private suspend fun uninstallInner(packageName: String, keepData: Boolean): Outcome {
         val states = channels.states.value
         val cmd = if (keepData) "pm uninstall -k $packageName" else "pm uninstall $packageName"
+        val authorizer = channels.settingsRef.installAuthorizer.value
+
+        // 0. 作业帮系统服务（InstallerX 的 Birchua 授权器同款）
+        if ((authorizer == InstallAuthorizer.Auto || authorizer == InstallAuthorizer.Zybos) &&
+            ZybosApi.isAvailable(context)
+        ) {
+            val r = ZybosApi.silentUninstall(context, packageName)
+            if (r.success) {
+                return Outcome(true, "作业帮系统服务", r.message)
+            }
+            channels.log("卸载：作业帮系统服务未成功 → ${r.message}")
+        }
 
         // 1. Root
-        if (states[Channel.Root]?.available == true) {
+        if (states[Channel.Root]?.available == true &&
+            (authorizer == InstallAuthorizer.Auto || authorizer == InstallAuthorizer.Root)
+        ) {
             val r = channels.execAsShell(cmd)
             if (r.ok && !r.output.contains("Failure")) {
                 return Outcome(true, "Root", "已通过 Root 静默卸载")
@@ -548,7 +670,9 @@ class Installer(
         }
 
         // 2. 无线调试 / 本地回环
-        if (states[Channel.Wireless]?.available == true || states[Channel.LocalLoop]?.available == true) {
+        if ((states[Channel.Wireless]?.available == true || states[Channel.LocalLoop]?.available == true) &&
+            (authorizer == InstallAuthorizer.Auto || authorizer == InstallAuthorizer.Shell)
+        ) {
             val r = channels.execAsShell(cmd)
             if (r.ok && !r.output.contains("Failure")) {
                 return Outcome(true, r.via, "已通过 ${r.via} 卸载")
@@ -643,9 +767,16 @@ class Installer(
     )
 
     private companion object {
-        /** 单次推包上限 64MB，超过就走系统安装器，避免把内存和通道拖死。 */
-        const val MAX_PUSH_BYTES = 64L * 1024 * 1024
-        /** 分块上限（96KB × 800 ≈ 75MB，留出余量）。 */
-        const val MAX_CHUNKS = 800
+        /**
+         * 单次推包上限。
+         *
+         * 原版限制在 64MB，但现在的 APK 动辄上百兆（微信、游戏包），
+         * 卡在 64MB 等于「稍大一点的包就永远装不上」。
+         * 提到 256MB 后覆盖绝大多数真实安装包；仍然留上限，
+         * 是为了避免极端情况下把内存和通道拖死。
+         */
+        const val MAX_PUSH_BYTES = 256L * 1024 * 1024
+        /** 分块上限（96KB × 3000 ≈ 288MB，留出余量）。 */
+        const val MAX_CHUNKS = 3000
     }
 }

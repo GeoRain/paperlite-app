@@ -25,6 +25,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.codefox.paperlite.ui.components.BulletRow
+import com.codefox.paperlite.ui.components.ActionButton
 import com.codefox.paperlite.ui.components.InfoRow
 import com.codefox.paperlite.ui.components.Metrics
 import com.codefox.paperlite.ui.components.PageHeader
@@ -40,7 +41,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
  * 顶部是开发者名片（Dr.Fox），下方是能力范围、风险提示与技术栈。
  */
 @Composable
-fun AboutPage() {
+fun AboutPage(showHeader: Boolean = true) {
     val listState = rememberLazyListState()
     val context = LocalContext.current
 
@@ -49,12 +50,14 @@ fun AboutPage() {
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 20.dp),
     ) {
-        item(key = "header") {
-            PageHeader(
-                title = "关于",
-                kicker = "作者与更新信息",
-                subtitle = "PaperLite · 面向个人设备的系统能力探索工具",
-            )
+        if (showHeader) {
+            item(key = "header") {
+                PageHeader(
+                    title = "关于",
+                    kicker = "作者与更新信息",
+                    subtitle = "PaperLite · 面向个人设备的系统能力探索工具",
+                )
+            }
         }
 
         item(key = "author") {
@@ -66,6 +69,7 @@ fun AboutPage() {
                 BulletRow("PaperLite 复刻了 JC Code V3 的通道机制，Lite 版把操作逐条拆成独立页面。")
                 BulletRow("它面向自己拥有或经合法授权的设备，用于系统管理与应用安装辅助。")
                 BulletRow("所有高权限操作都需要你先完成无线调试配对。")
+                BulletRow("界面有澎湃与 Material 3 两套皮肤，颜色可以从壁纸或系统取，也可以自己选一张图。")
             }
         }
 
@@ -104,6 +108,34 @@ fun AboutPage() {
                 InfoRow("配对", "TLS-PSK + 公钥交换")
                 InfoRow("包名", context.packageName)
                 InfoRow("版本", com.codefox.paperlite.BuildConfig.VERSION_NAME)
+            }
+        }
+
+        item(key = "links") {
+            SectionCard(title = "官网与电脑端", subtitle = "电脑端只是辅助软件，手机上不装也能用") {
+                InfoRow("官网", OFFICIAL_SITE)
+                InfoRow("源码", GITHUB_REPO)
+                InfoRow("电脑端", "PaperLite PC（Windows，走 adb）")
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Metrics.inset, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    ActionButton(
+                        text = "打开官网",
+                        onClick = { openUrl(context, "https://" + OFFICIAL_SITE) },
+                    )
+                    ActionButton(
+                        text = "电脑端",
+                        onClick = { openUrl(context, "https://" + OFFICIAL_SITE + "/#desktop") },
+                    )
+                    ActionButton(
+                        text = "GitHub",
+                        onClick = { openUrl(context, "https://" + GITHUB_REPO) },
+                    )
+                }
+                BulletRow("电脑端用数据线或无线调试连接手机，能批量装包、看截图、开终端，功能比手机版少。")
             }
         }
 
@@ -169,5 +201,21 @@ private fun AuthorCard() {
             }
         }
         BulletRow("Lite 版在原版通道机制上做了精简：无线调试配对后，能力统一通过终端命令执行。")
+    }
+}
+
+/** 官网地址：仓库 `docs/` 目录，走 GitHub Pages。 */
+private const val OFFICIAL_SITE = "georain.github.io/paperlite"
+
+/** 源码仓库。 */
+private const val GITHUB_REPO = "github.com/GeoRain/paperlite"
+
+/** 拉起系统浏览器；没有浏览器就安静失败，不打断关于页。 */
+private fun openUrl(context: android.content.Context, url: String) {
+    runCatching {
+        context.startActivity(
+            android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
     }
 }

@@ -203,6 +203,15 @@ public final class InstallAgent {
         try {
             Class<?> vmRuntime = Class.forName("dalvik.system.VMRuntime");
             Object runtime = vmRuntime.getMethod("getRuntime").invoke(null);
+            // 原版同时用到 addHiddenApiExemptions 与 setHiddenApiExemptions，
+            // 两个都尝试一遍：新版 ART 有 setHiddenApiExemptions(String[])，
+            // 旧版只有 addHiddenApiExemptions(String)。
+            try {
+                Method add = vmRuntime.getMethod("addHiddenApiExemptions", String.class);
+                add.invoke(runtime, "L");
+            } catch (Throwable ignored) {
+                // 旧版 ART 没有这个方法，走下面的 set 版本
+            }
             Method method = vmRuntime.getMethod("setHiddenApiExemptions", String[].class);
             method.invoke(runtime, (Object) new String[]{"L"});
         } catch (Throwable ignored) {
@@ -279,6 +288,9 @@ public final class InstallAgent {
                         status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, status);
                     }
                     if (status == PackageInstaller.STATUS_SUCCESS) {
+                        // 原版同时存在精确串 "INSTALL_AGENT_OK" 与带空格的
+                        // "INSTALL_AGENT_OK "，两种判定方式都覆盖到。
+                        System.out.println("INSTALL_AGENT_OK");
                         System.out.println("INSTALL_AGENT_OK " + pkgName);
                         Runtime.getRuntime().exit(0);
                     } else {
@@ -316,6 +328,7 @@ public final class InstallAgent {
                 while (System.currentTimeMillis() < deadline) {
                     try {
                         context.getPackageManager().getPackageInfo(pkgName, 0);
+                        System.out.println("INSTALL_AGENT_OK");
                         System.out.println("INSTALL_AGENT_OK " + pkgName);
                         Runtime.getRuntime().exit(0);
                     } catch (Throwable ignored) {

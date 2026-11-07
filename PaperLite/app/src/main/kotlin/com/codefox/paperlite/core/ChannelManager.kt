@@ -105,8 +105,16 @@ class ChannelManager(
         }
     }
 
+    /**
+     * 写一条运行日志。
+     *
+     * **必须截断**：推包时每 96KB 一块的 base64 有 128KB，
+     * 原样塞进日志会让 StateFlow 每分钟搬运上百兆字符串——
+     * 这是「点开始安装之后整个界面像卡死」的直接原因之一。
+     */
     fun log(msg: String) {
-        settings.appendLog("[${nowText()}] $msg")
+        val line = if (msg.length > 240) msg.take(240) + "…" else msg
+        settings.appendLog("[${nowText()}] $line")
     }
 
     private fun nowText(): String {
@@ -130,7 +138,7 @@ class ChannelManager(
             safely(Channel.Root) { probeRoot() }
             safely(Channel.Accessibility) { probeAccessibility() }
             safely(Channel.LocalLoop) { probeLocalLoop() }
-            safely(Channel.Wireless) { probeWireless() }
+            safelySuspend(Channel.Wireless) { probeWireless() }
             // 本地 adbd 直连：对齐原版的「本地 ADB 模式」。
             // 放在探测之后异步建立，不阻塞界面——扫端口可能要试几十个。
             if (states.value[Channel.Root]?.available != true &&
@@ -139,13 +147,32 @@ class ChannelManager(
                 warmUpLocalAdb()
             }
         } finally {
+            probed = true
             _busy.value = null
         }
         _states.value
     }
 
+    /** 是否已经做过一次完整探测（应用启动时只探测一次，不必每次进页面都探）。 */
+    @Volatile
+    private var probed = false
+
+    fun needsProbe(): Boolean = !probed
+
     /** 包一层异常，失败时把原因写进该通道的 detail，而不是往外抛。 */
     private inline fun safely(channel: Channel, block: () -> Unit) {
+        try {
+            block()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            val reason = e.message ?: e::class.java.simpleName
+            update(channel, false, "探测异常：$reason")
+        }
+    }
+
+    /** 挂起版本的 [safely]，供需要重连的探测使用。 */
+    private suspend fun safelySuspend(channel: Channel, block: suspend () -> Unit) {
         try {
             block()
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -175,12 +202,15 @@ class ChannelManager(
         )
         val found = candidates.firstOrNull { runCatching { java.io.File(it).exists() }.getOrDefault(false) }
         if (found != null) {
-            // su 可能在没 root 的机器上存在但会一直阻塞等授权，加 2.5 秒超时
+            // 关键：必须用 `su -c id` 才算数。
+            // 直接跑 `id` 得到的是应用自己的 uid，root 设备上也会被判成「没有 root」，
+            // 于是 pm install / 安装代理整条链都用不到 root。
+            // su 可能在没 root 的机器上存在但会一直阻塞等授权，所以加 2.5 秒超时
             val r: ShellResult? = kotlinx.coroutines.withTimeoutOrNull(2_500L) {
-                kotlinx.coroutines.withContext(Dispatchers.IO) { execLocal("id") }
+                kotlinx.coroutines.withContext(Dispatchers.IO) { execLocal("su -c id") }
             }
             val hasRoot = r != null && r.ok && r.output.contains("uid=0")
-            update(Channel.Root, hasRoot, if (hasRoot) "已取得 shell 级 root" else "找到 $found 但无法执行")
+            update(Channel.Root, hasRoot, if (hasRoot) "已取得 root 身份" else "找到 $found 但无法执行")
             hasRoot
         } else {
             update(Channel.Root, false, "未找到 su")
@@ -208,15 +238,34 @@ class ChannelManager(
         )
     }
 
-    private fun probeWireless() {
-        val alive = session != null
+    /**
+     * 探测无线调试通道。
+     *
+     * 不能只看 `session != null`：应用重启后内存里的会话必然为空，
+     * 但设置里还记着上次的连接端口，这时直接判「不可用」，
+     * 安装就会掉到系统安装器——用户看到的就是「静默安装失败」。
+     * 所以这里在有待用端口时**主动重连一次**。
+     */
+    private suspend fun probeWireless() {
+        if (session != null) {
+            update(Channel.Wireless, true, "会话已建立（${settings.lastDevice.value ?: "127.0.0.1"}）")
+            return
+        }
+        val port = settings.connectPort.value
         val last = settings.lastDevice.value
-        update(
-            Channel.Wireless,
-            alive,
-            if (alive) "会话已建立（${last ?: "127.0.0.1"}）"
-            else if (last != null) "上次配对 $last，可直接重连" else "未配对",
-        )
+        if (port <= 0) {
+            update(Channel.Wireless, false, if (last != null) "上次配对 $last，端口缺失" else "未配对")
+            return
+        }
+        update(Channel.Wireless, false, "正在重连 127.0.0.1:$port …")
+        val conn = kotlinx.coroutines.withTimeoutOrNull(8_000L) {
+            runCatching { requireSession() }.getOrNull()
+        }
+        if (conn != null) {
+            update(Channel.Wireless, true, "会话已建立（127.0.0.1:$port）")
+        } else {
+            update(Channel.Wireless, false, "重连失败，请到「超级用户」页重新配对")
+        }
     }
 
     // ---------------------------------------------------------------- 会话
@@ -303,13 +352,20 @@ class ChannelManager(
             attempts += res
             if (r.ok) return res
         }
-        // 2. 无线调试会话：adb shell 的 uid 是 2000
-        if (states[Channel.Wireless]?.available == true) {
-            val r = runCatching { shell(command) }
-                .getOrElse { ShellResult(command, "", 1, it.message) }
-            val res = ExecResult(r.ok, r.output, "无线调试会话", if (r.ok) null else r.error)
-            attempts += res
-            if (r.ok) return res
+        // 2. 无线调试会话：adb shell 的 uid 是 2000。
+        //    只要设置里还记着连接端口，就先按需重连一次——
+        //    状态缓存可能是「应用重启后还没探测」的旧值，不能拿它当准绳。
+        if (states[Channel.Wireless]?.available == true || settings.connectPort.value > 0) {
+            val conn = runCatching { requireSession() }.getOrNull()
+            if (conn != null) {
+                val r = runCatching { conn.shell(command) }.getOrElse {
+                    session = null
+                    ShellResult(command, "", 1, it.message ?: "会话异常，已断开")
+                }
+                val res = ExecResult(r.ok, r.output, "无线调试会话", if (r.ok) null else r.error)
+                attempts += res
+                if (r.ok) return res
+            }
         }
         // 3. 本地回环：同样是 adb shell 身份
         if (states[Channel.LocalLoop]?.available == true) {
@@ -564,6 +620,14 @@ class ChannelManager(
     fun identityStore(): IdentityStore = identity
 
     /**
+     * 设置的只读入口。
+     *
+     * 安装器需要读「安装授权器」，但它本身不持有 Settings，
+     * 由通道总控代为暴露，避免再往构造参数里塞一层。
+     */
+    val settingsRef: Settings get() = settings
+
+    /**
      * 取本应用自身的 APK 路径。
      *
      * 原版 JC Code V3 的安装代理靠 `CLASSPATH='<自身 APK>' app_process ...`
@@ -581,11 +645,22 @@ class ChannelManager(
      * 以及至少有一条能在目标机上执行 shell 的通道。
      */
     fun installAgentReady(): Boolean {
-        // 代理 dex 是打包进 assets 的，天然存在；这里只关心有没有能执行它的通道
         val s = _states.value
-        return s[Channel.Root]?.available == true ||
+        val hasChannel = s[Channel.Root]?.available == true ||
             s[Channel.Wireless]?.available == true ||
             s[Channel.LocalLoop]?.available == true
+        return hasChannel && agentAssetPresent
+    }
+
+    /**
+     * 安装代理 dex 是否真的在 APK 里。
+     *
+     * 之前这里默认「assets 里天然存在」，结果打包漏了文件时界面照样显示
+     * 「就绪（通道① 可用）」，装不上却看不出原因——现在改成真的去开一次。
+     */
+    private val agentAssetPresent: Boolean by lazy {
+        runCatching { context.assets.open("agent/classes.dex").use { it.read() >= 0 } }
+            .getOrDefault(false)
     }
 
     /**
@@ -599,6 +674,29 @@ class ChannelManager(
         return s[Channel.Root]?.available == true ||
             s[Channel.Wireless]?.available == true ||
             s[Channel.LocalLoop]?.available == true
+    }
+
+    /**
+     * 现场确认「现在能不能拿到 shell 身份」，而不是读缓存状态。
+     *
+     * 安装流程必须先问这一句：`states` 只是上一次探测的快照，
+     * 应用重启、无线调试端口变化、root 授权被撤，都会让它过期。
+     * 只看快照就会得出「没有可用通道」，然后把安装甩给系统安装器。
+     */
+    suspend fun acquireShellIdentity(): Boolean = withContext(Dispatchers.IO) {
+        if (hasShellIdentity()) return@withContext true
+        val r = runCatching { execShellInner("id") }.getOrNull() ?: return@withContext false
+        val uid = r.output
+        val ok = r.ok && (uid.contains("uid=0") || uid.contains("uid=2000"))
+        if (ok) {
+            // 探测成功后同步一次状态，界面上的「可用」才不会是假的不可用
+            when {
+                uid.contains("uid=0") -> update(Channel.Root, true, "已取得 root 身份")
+                else -> update(Channel.Wireless, true, "会话已建立")
+            }
+            log("安装前探测：已取得 shell 身份（${r.via}）")
+        }
+        ok
     }
 
     fun release() {

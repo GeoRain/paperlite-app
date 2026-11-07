@@ -2,47 +2,40 @@ package com.codefox.paperlite.ui
 
 import androidx.compose.ui.graphics.vector.ImageVector
 import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.Delete
 import top.yukonga.miuix.kmp.icon.extended.GridView
 import top.yukonga.miuix.kmp.icon.extended.Home
-import top.yukonga.miuix.kmp.icon.extended.Import
-import top.yukonga.miuix.kmp.icon.extended.Info
-import top.yukonga.miuix.kmp.icon.extended.Promotions
-import top.yukonga.miuix.kmp.icon.extended.Scan
+import top.yukonga.miuix.kmp.icon.extended.Link
+import top.yukonga.miuix.kmp.icon.extended.Lock
 import top.yukonga.miuix.kmp.icon.extended.Settings
 import top.yukonga.miuix.kmp.icon.extended.Store
 import top.yukonga.miuix.kmp.icon.extended.Tune
 
 /**
- * 侧边栏目的地：**一个功能一个页面**。
+ * 侧边栏目的地：**六项，按权限来源分开**。
  *
- * Lite 版只保留真正能用的能力：
- * - 概览：通道状态 + 服务器开关
- * - 应用：已安装应用列表、打开详情
- * - 安装：选包 → 按通道安装（内置文件选择器）
- * - 卸载：按包名卸载 / 冻结 / 清数据
- * - 设备：系统信息与进程
- * - 终端：无线调试配对后执行任意命令
- * - 配对：无线调试配对（终端的前置条件，单独成页）
- * - 设置：外观、服务器、通道参数、日志
- * - 关于：版本、风险提示、开发者名片
+ * 早期版本有 10 项，图标多、每一项都要重建 ImageVector，低端 Pad 上
+ * 侧边栏本身就是个持续的开销；更重要的是 10 项里一半是「同一件事的另一半」
+ * （安装 / 卸载、设备 / 配对），用户反而找不到。
  *
- * 已删除的能力（要么在本机权限下根本跑不通，要么已被终端命令覆盖）：
- * - 网络代理：写系统代理需要高权限，已由终端里的 `settings put global http_proxy` 覆盖
- * - 设备所有者防卸载：需要设备所有者资格，普通安装无法激活
- * - 无障碍自动填配对码：改由「配对」页的识别按钮 + 手动输入完成
+ * 现在按「做什么」分成六类，具体功能收进页内分段标签：
+ * - 概览：通道状态、一键探测、常用入口
+ * - 应用：应用管理（已安装 / 安装 / 卸载）
+ * - 超级用户：root 工具（对齐 SukiSU 的管理面）+ 通道状态 + 设备所有者
+ * - Shizuku：Shizuku 服务检测、官方启动流程、以 Shizuku 身份执行命令
+ * - 命令行：任意 shell 命令与常用命令（对齐 Termux 的使用习惯）
+ * - 设置：外观、通道参数、日志、系统信息、公告、关于
+ *
+ * root 与 Shizuku 之所以分成两页：它们是**两种不同来源的高权限身份**，
+ * 混在一起用户分不清「这次的权限到底是 root 给的还是 Shizuku 给的」。
  */
 enum class Destination(val label: String) {
     Home("概览"),
     Apps("应用"),
-    Install("安装"),
-    Uninstall("卸载"),
-    Device("设备"),
-    Terminal("终端"),
-    Pairing("配对"),
-    Notice("公告"),
+    Superuser("超级用户"),
+    Shizuku("Shizuku"),
+    Accessibility("无障碍"),
+    Terminal("命令行"),
     Settings("设置"),
-    About("关于"),
     ;
 
     companion object {
@@ -67,12 +60,9 @@ data class RailEntry(
 fun buildRailEntries(): List<RailEntry> = listOf(
     RailEntry(Destination.Home, "概览", MiuixIcons.Home),
     RailEntry(Destination.Apps, "应用", MiuixIcons.Store),
-    RailEntry(Destination.Install, "安装", MiuixIcons.Import),
-    RailEntry(Destination.Uninstall, "卸载", MiuixIcons.Delete),
-    RailEntry(Destination.Device, "设备", MiuixIcons.GridView),
-    RailEntry(Destination.Terminal, "终端", MiuixIcons.Tune),
-    RailEntry(Destination.Pairing, "配对", MiuixIcons.Scan),
-    RailEntry(Destination.Notice, "公告", MiuixIcons.Promotions),
+    RailEntry(Destination.Superuser, "超级用户", MiuixIcons.Lock),
+    RailEntry(Destination.Shizuku, "Shizuku", MiuixIcons.Link),
+    RailEntry(Destination.Accessibility, "无障碍", MiuixIcons.GridView),
+    RailEntry(Destination.Terminal, "命令行", MiuixIcons.Tune),
     RailEntry(Destination.Settings, "设置", MiuixIcons.Settings),
-    RailEntry(Destination.About, "关于", MiuixIcons.Info),
 )

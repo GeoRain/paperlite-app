@@ -45,6 +45,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 @Composable
 fun UninstallPage(
     channels: ChannelManager,
+    showHeader: Boolean = true,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -66,11 +67,13 @@ fun UninstallPage(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 4.dp, bottom = 12.dp),
     ) {
-        item(key = "header") {
-            PageHeader(
-                title = "卸载",
-                kicker = "输入包名，或在应用页选择后操作",
-            )
+        if (showHeader) {
+            item(key = "header") {
+                PageHeader(
+                    title = "卸载",
+                    kicker = "输入包名，或在「已安装」里选中后操作",
+                )
+            }
         }
 
         item(key = "single") {

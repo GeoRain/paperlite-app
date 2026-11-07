@@ -28,3 +28,7 @@ report_review.py
 .DS_Store
 Thumbs.db
 *.log
+
+# ---- 本地工作区 ----
+.shots/
+_apk_analysis/

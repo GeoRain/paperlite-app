@@ -10,7 +10,8 @@
 
 ```
 PaperLite/      Android 应用源码（Kotlin + Compose + Miuix）
-website/        官网（静态站点，深浅色双主题）
+desktop/        电脑端辅助软件（Python 标准库，包一层 adb）
+docs/           官网（GitHub Pages：https://georain.github.io/paperlite/）
 ```
 
 ## 功能
@@ -20,7 +21,12 @@ website/        官网（静态站点，深浅色双主题）
 - **应用管理**：安装、卸载、停用、启用、应用列表与详情
 - **本地公告**：内置公告 + 可选远程 JSON 源，离线可用
 - **终端**：在设备上直接执行 shell 命令
-- **官网**：静态站点，含公告页与 APK 下载
+- **超级用户**：对齐 SukiSU 的管理面，ksud 随包内置，一键 DirtyFrag 临时 Root；进门有风险确认
+- **Shizuku**：启动器与 rish 随包内置，不要求另装 Shizuku
+- **应用商店**：解析 F-Droid 镜像索引，真实图标展示，可静默安装（第三方源内容未经审查，有明确提示）
+- **外观**：澎湃 / Material 3 双皮肤即时切换，莫奈取色 + 应用内壁纸
+- **电脑端**：PaperLite PC 辅助软件（连设备、装包、终端、截图，只监听 127.0.0.1）
+- **官网**：静态站点，含公告页、电脑端介绍与 APK 下载
 
 ## 安装机制（本项目与 JC Code V3 的对应关系）
 

@@ -10,7 +10,9 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -35,16 +38,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.codefox.paperlite.ui.theme.DesignStyle
+import com.codefox.paperlite.ui.theme.LocalDesignStyle
+import com.codefox.paperlite.ui.theme.LocalShapes
 import com.codefox.paperlite.ui.theme.LocalStatusColors
+import com.codefox.paperlite.ui.theme.Motion
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
  * 浮层组件。
- *
- * ## 为什么要自己写
  *
  * Miuix 0.9.4 自带的 `OverlayDialog` / `OverlayBottomSheet` 用的是 value class
  * 包装过的颜色与尺寸参数，从 Kotlin 侧调用要按它的内部约定拼参数，
@@ -92,8 +101,8 @@ fun AnimatedOverlay(
         // 遮罩单独一层：只有 visible 时才可点，退场时不拦截触摸
         AnimatedVisibility(
             visible = visible,
-            enter = fadeIn(tween(180, easing = LinearOutSlowInEasing)),
-            exit = fadeOut(tween(160, easing = FastOutSlowInEasing)),
+            enter = fadeIn(tween(Motion.SCRIM, easing = LinearOutSlowInEasing)),
+            exit = fadeOut(tween(Motion.SCRIM, easing = FastOutSlowInEasing)),
         ) {
             Box(
                 modifier = Modifier
@@ -109,12 +118,12 @@ fun AnimatedOverlay(
 
         AnimatedVisibility(
             visible = mounted,
-            enter = fadeIn(tween(200, easing = LinearOutSlowInEasing)) +
-                scaleIn(tween(240, easing = FastOutSlowInEasing), initialScale = 0.92f) +
-                slideInVertically(tween(240, easing = FastOutSlowInEasing)) { it / 8 },
-            exit = fadeOut(tween(160, easing = FastOutSlowInEasing)) +
-                scaleOut(tween(180, easing = FastOutSlowInEasing), targetScale = 0.95f) +
-                slideOutVertically(tween(180, easing = FastOutSlowInEasing)) { it / 8 },
+            enter = fadeIn(tween(Motion.MEDIUM, easing = LinearOutSlowInEasing)) +
+                scaleIn(tween(Motion.LONG, easing = FastOutSlowInEasing), initialScale = 0.92f) +
+                slideInVertically(tween(Motion.LONG, easing = FastOutSlowInEasing)) { it / 8 },
+            exit = fadeOut(tween(Motion.QUICK, easing = FastOutSlowInEasing)) +
+                scaleOut(tween(Motion.MEDIUM, easing = FastOutSlowInEasing), targetScale = 0.95f) +
+                slideOutVertically(tween(Motion.MEDIUM, easing = FastOutSlowInEasing)) { it / 8 },
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -131,6 +140,9 @@ fun AnimatedOverlay(
  *
  * 用于「卸载」「清数据」这类不可逆操作的二次确认。
  * 危险操作用红色强调按钮，一眼能看出后果。
+ *
+ * Material 3 风格下走真正的 [androidx.compose.material3.AlertDialog]，
+ * 澎湃风格保持自绘面板。
  */
 @Composable
 fun ConfirmDialog(
@@ -143,6 +155,48 @@ fun ConfirmDialog(
     onDismiss: () -> Unit,
 ) {
     val c = LocalStatusColors.current
+    val shapes = LocalShapes.current
+    val m3 = LocalDesignStyle.current == DesignStyle.Material3
+
+    if (m3) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = onDismiss,
+            shape = RoundedCornerShape(shapes.cornerLarge),
+            title = {
+                androidx.compose.material3.Text(
+                    text = title,
+                    style = MiuixTheme.textStyles.title4,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
+                )
+            },
+            text = {
+                androidx.compose.material3.Text(
+                    text = message,
+                    style = MiuixTheme.textStyles.body2,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = onConfirm) {
+                    androidx.compose.material3.Text(
+                        text = confirmText,
+                        color = if (danger) c.danger
+                        else androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                    )
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = onDismiss) {
+                    androidx.compose.material3.Text(
+                        text = dismissText,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+        )
+        return
+    }
+
     AnimatedOverlay(
         visible = true,
         onDismiss = onDismiss,
@@ -150,7 +204,7 @@ fun ConfirmDialog(
         Column(
             modifier = Modifier
                 .padding(horizontal = 26.dp)
-                .clip(RoundedCornerShape(22.dp))
+                .clip(RoundedCornerShape(shapes.cornerLarge))
                 .background(MiuixTheme.colorScheme.surfaceContainerHigh)
                 .padding(horizontal = 20.dp, vertical = 18.dp),
         ) {
@@ -192,17 +246,277 @@ fun ConfirmDialog(
 }
 
 /**
+ * 知情确认弹窗：**必须勾选复选框**才能继续，点遮罩与返回键都不关闭。
+ *
+ * 用在「超级用户」这类高危页面进门处：每次进入都弹一次，不做持久化
+ * ——风险提示一旦被记住就再也没人看，等于没有。
+ *
+ * 与 [ConfirmDialog] 一样走两套皮肤：Material 3 用官方 AlertDialog，
+ * 澎湃风格用自绘面板。复选框是自绘的（画一条勾线），不依赖任何主题的
+ * Checkbox，避免两套皮肤下尺寸与配色对不齐。
+ */
+@Composable
+fun ConsentDialog(
+    title: String,
+    message: String,
+    consent: String,
+    confirmText: String = "我已了解",
+    onConfirm: () -> Unit,
+) {
+    val shapes = LocalShapes.current
+    val m3 = LocalDesignStyle.current == DesignStyle.Material3
+    val c = LocalStatusColors.current
+    var checked by remember { mutableStateOf(false) }
+
+    if (m3) {
+        val cs = androidx.compose.material3.MaterialTheme.colorScheme
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { },
+            shape = RoundedCornerShape(shapes.cornerLarge),
+            title = {
+                androidx.compose.material3.Text(
+                    text = title,
+                    style = MiuixTheme.textStyles.title4,
+                    color = cs.onSurface,
+                )
+            },
+            text = {
+                Column {
+                    androidx.compose.material3.Text(
+                        text = message,
+                        style = MiuixTheme.textStyles.body2,
+                        color = cs.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    ConsentCheck(
+                        checked = checked,
+                        onCheckedChange = { checked = it },
+                        text = consent,
+                        textColor = cs.onSurface,
+                        accent = cs.primary,
+                    )
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = onConfirm,
+                    enabled = checked,
+                ) {
+                    androidx.compose.material3.Text(
+                        text = confirmText,
+                        color = if (checked) cs.primary else cs.onSurfaceVariant.copy(alpha = 0.38f),
+                    )
+                }
+            },
+        )
+        return
+    }
+
+    AnimatedOverlay(visible = true, onDismiss = null) {
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 26.dp)
+                .clip(RoundedCornerShape(shapes.cornerLarge))
+                .background(MiuixTheme.colorScheme.surfaceContainerHigh)
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+        ) {
+            Text(
+                text = title,
+                style = MiuixTheme.textStyles.title4,
+                color = MiuixTheme.colorScheme.onSurfaceContainer,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(7.dp))
+            Text(
+                text = message,
+                style = MiuixTheme.textStyles.footnote2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                maxLines = 5,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(12.dp))
+            ConsentCheck(
+                checked = checked,
+                onCheckedChange = { checked = it },
+                text = consent,
+                textColor = MiuixTheme.colorScheme.onSurfaceContainer,
+                accent = c.danger,
+            )
+            Spacer(Modifier.height(16.dp))
+            ActionButton(
+                text = if (checked) confirmText else "请先勾选上方确认项",
+                modifier = Modifier.fillMaxWidth(),
+                enabled = checked,
+                tint = MiuixTheme.colorScheme.primary,
+                onClick = onConfirm,
+            )
+        }
+    }
+}
+
+/**
+ * 自绘复选框 + 说明文字。整行可点，不用精确点到那个小方块。
+ */
+@Composable
+private fun ConsentCheck(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    text: String,
+    textColor: Color,
+    accent: Color,
+) {
+    val boxColor by androidx.compose.animation.animateColorAsState(
+        targetValue = if (checked) accent else Color.Transparent,
+        animationSpec = tween(Motion.QUICK),
+        label = "consent-box",
+    )
+    val borderColor by androidx.compose.animation.animateColorAsState(
+        targetValue = if (checked) accent else textColor.copy(alpha = 0.45f),
+        animationSpec = tween(Motion.QUICK),
+        label = "consent-border",
+    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = { onCheckedChange(!checked) },
+            )
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(20.dp)
+                .clip(RoundedCornerShape(5.dp))
+                .background(boxColor)
+                .border(1.5.dp, borderColor, RoundedCornerShape(5.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (checked) {
+                Canvas(modifier = Modifier.size(13.dp)) {
+                    val w = size.width
+                    val h = size.height
+                    val p = Path().apply {
+                        moveTo(w * 0.12f, h * 0.52f)
+                        lineTo(w * 0.40f, h * 0.80f)
+                        lineTo(w * 0.90f, h * 0.18f)
+                    }
+                    drawPath(
+                        path = p,
+                        color = Color.White,
+                        style = Stroke(
+                            width = w * 0.16f,
+                            cap = StrokeCap.Round,
+                            join = StrokeJoin.Round,
+                        ),
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.width(10.dp))
+        Text(
+            text = text,
+            style = MiuixTheme.textStyles.footnote2,
+            color = textColor,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+/**
  * 底部动作面板。
  *
  * 用于「一个操作对应多个选项」的场景（例如应用详情里选操作）。
  * 从底部滑入，手感跟澎湃 OS 的动作面板一致。
  */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun ActionSheet(
     title: String?,
     actions: List<ActionSheetEntry>,
     onDismiss: () -> Unit,
 ) {
+    val shapes = LocalShapes.current
+    val m3 = LocalDesignStyle.current == DesignStyle.Material3
+
+    // Material 3 风格：用官方 ModalBottomSheet，自带拖拽条与滑入动画
+    if (m3) {
+        androidx.compose.material3.ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow,
+        ) {
+            Column(modifier = Modifier.padding(horizontal = Metrics.inset, vertical = 8.dp)) {
+                if (title != null) {
+                    androidx.compose.material3.Text(
+                        text = title,
+                        style = androidx.compose.material3.MaterialTheme.typography.labelLarge,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                actions.forEach { entry ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(shapes.cornerSmall))
+                            .clickable {
+                                onDismiss()
+                                entry.onClick()
+                            }
+                            .padding(horizontal = 10.dp, vertical = 13.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            androidx.compose.material3.Text(
+                                text = entry.text,
+                                style = androidx.compose.material3.MaterialTheme.typography.bodyLarge,
+                                color = if (entry.danger) {
+                                    LocalStatusColors.current.danger
+                                } else {
+                                    androidx.compose.material3.MaterialTheme.colorScheme.onSurface
+                                },
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            if (entry.subtitle != null) {
+                                androidx.compose.material3.Text(
+                                    text = entry.subtitle,
+                                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(shapes.cornerSmall))
+                        .clickable(onClick = onDismiss)
+                        .padding(vertical = 12.dp),
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    androidx.compose.material3.Text(
+                        text = "取消",
+                        style = androidx.compose.material3.MaterialTheme.typography.bodyLarge,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+        }
+        return
+    }
+
     AnimatedOverlay(
         visible = true,
         onDismiss = onDismiss,
@@ -212,7 +526,7 @@ fun ActionSheet(
             modifier = Modifier
                 .padding(horizontal = 12.dp, vertical = 16.dp)
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(24.dp))
+                .clip(RoundedCornerShape(shapes.cornerLarge))
                 .background(MiuixTheme.colorScheme.surfaceContainerHigh)
                 .padding(horizontal = Metrics.inset, vertical = 10.dp),
         ) {
@@ -231,7 +545,7 @@ fun ActionSheet(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
+                        .clip(RoundedCornerShape(shapes.cornerSmall))
                         .clickable {
                             onDismiss()
                             entry.onClick()
@@ -267,7 +581,7 @@ fun ActionSheet(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(shapes.cornerSmall))
                     .clickable(onClick = onDismiss)
                     .padding(vertical = 11.dp),
                 horizontalArrangement = Arrangement.Center,
@@ -303,18 +617,19 @@ fun ToastMessage(
     modifier: Modifier = Modifier,
     durationMs: Long = 2_600L,
 ) {
+    val shapes = LocalShapes.current
     AnimatedVisibility(
         visible = !text.isNullOrBlank(),
-        enter = fadeIn(tween(200, easing = LinearOutSlowInEasing)) +
-            slideInVertically(tween(260, easing = LinearOutSlowInEasing)) { it / 3 },
-        exit = fadeOut(tween(220, easing = FastOutSlowInEasing)) +
-            slideOutVertically(tween(220, easing = FastOutSlowInEasing)) { it / 3 },
+        enter = fadeIn(tween(Motion.MEDIUM, easing = LinearOutSlowInEasing)) +
+            slideInVertically(tween(Motion.LONG, easing = LinearOutSlowInEasing)) { it / 3 },
+        exit = fadeOut(tween(Motion.MEDIUM, easing = FastOutSlowInEasing)) +
+            slideOutVertically(tween(Motion.MEDIUM, easing = FastOutSlowInEasing)) { it / 3 },
         modifier = modifier,
     ) {
         Box(
             modifier = Modifier
                 .padding(horizontal = 16.dp)
-                .clip(RoundedCornerShape(18.dp))
+                .clip(RoundedCornerShape(shapes.cornerMedium))
                 .background(MiuixTheme.colorScheme.surfaceContainerHighest)
                 .padding(horizontal = 16.dp, vertical = 11.dp),
         ) {
@@ -337,4 +652,4 @@ fun ToastMessage(
 }
 
 /** 退场动画时长，与 [AnimatedOverlay] 的 exit 保持一致。 */
-private const val EXIT_DURATION_MS = 190L
+private const val EXIT_DURATION_MS = 210L

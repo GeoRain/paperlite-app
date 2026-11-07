@@ -60,8 +60,26 @@ class PairingCaptureService : Service() {
                     stopSelf()
                     return START_NOT_STICKY
                 }
+                // Android 14+ 的两条硬约束，顺序不能反：
+                // 1. `startForegroundService()` 之后必须在 5 秒内调用 `startForeground()`，
+                //    否则系统抛 ForegroundServiceDidNotStartInTimeException 直接杀进程；
+                // 2. 以 mediaProjection 类型 `startForeground()` 之前，
+                //    必须已经拿到 MediaProjection 并注册好回调，
+                //    否则抛 IllegalStateException。
+                //
+                // 所以拆成两步：先 startForegroundInternal() 满足 (1)，
+                // 再 beginProjection() 满足 (2)。
+                // 之前把 beginProjection 放在前面，createVirtualDisplay
+                // 在没有前台服务的情况下执行，Android 14+ 直接判定非法，
+                // 服务没能走到 startForeground → 进程被系统杀掉。
                 startForegroundInternal()
-                beginProjection(code, data)
+                if (!beginProjection(code, data)) {
+                    // 拿不到投影也要收尾：stopForeground + stopSelf，
+                    // 否则系统会一直等前台服务，超时后同样杀进程。
+                    runCatching { stopForeground(STOP_FOREGROUND_REMOVE) }
+                    stopSelf()
+                    return START_NOT_STICKY
+                }
             }
             ACTION_STOP -> stopCapture()
         }
@@ -95,21 +113,57 @@ class PairingCaptureService : Service() {
             .setOngoing(true)
             .build()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIF_ID, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
+            // 第一步先用「无类型」起前台——此时还没有 MediaProjection，
+            // 声明 mediaProjection 类型会被系统拒绝。
+            // 拿到投影后（见 upgradeToMediaProjectionType）再升级类型。
+            startForeground(NOTIF_ID, notif)
         } else {
             startForeground(NOTIF_ID, notif)
         }
     }
 
-    private fun beginProjection(resultCode: Int, data: Intent) {
+    /**
+     * 升级前台服务类型为 mediaProjection。
+     *
+     * 必须等 MediaProjection 拿到、回调注册好之后才能调，
+     * 否则 Android 14+ 抛 `IllegalStateException`。
+     */
+    private fun upgradeToMediaProjectionType() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        val nm = getSystemService(NotificationManager::class.java)
+        val notif = Notification.Builder(this, CHANNEL_ID)
+            .setContentTitle("正在识别配对码")
+            .setContentText("只读取当前屏幕上的配对码，识别完成即停止")
+            .setSmallIcon(android.R.drawable.ic_menu_camera)
+            .setOngoing(true)
+            .build()
+        runCatching {
+            startForeground(NOTIF_ID, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
+        }
+    }
+
+    private fun beginProjection(resultCode: Int, data: Intent): Boolean {
         val mpm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         val mp = runCatching { mpm.getMediaProjection(resultCode, data) }.getOrNull()
         if (mp == null) {
             finish("屏幕读取授权失败")
-            return
+            return false
         }
         projection = mp
         startedAt = System.currentTimeMillis()
+
+        // Android 14+ 强制：MediaProjection 必须先注册回调，
+        // 否则 startForeground(mediaProjection) 会抛 IllegalStateException。
+        runCatching {
+            mp.registerCallback(object : android.media.projection.MediaProjection.Callback() {
+                override fun onStop() {
+                    finish("屏幕读取已结束")
+                }
+            }, handler)
+        }
+
+        // 投影已就绪、回调已注册 → 现在可以把前台服务类型升级为 mediaProjection
+        upgradeToMediaProjectionType()
 
         val metrics = resources.displayMetrics
         val w = metrics.widthPixels
@@ -174,6 +228,7 @@ class PairingCaptureService : Service() {
                 runCatching { image.close() }
             }
         }, handler)
+        return true
     }
 
     private fun finish(error: String?, code: String? = null) {
