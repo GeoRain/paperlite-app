@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -119,8 +120,9 @@ fun SuperuserPage(
     var autoActivated by remember { mutableStateOf(false) }
 
     // 风险知情确认：**每次进入本页都弹一次**，不落盘、不记忆。
-    // 离开本页（切到别的目的地）时 composition 被销毁，返回即重新弹。
-    var riskAccepted by remember { mutableStateOf(false) }
+    // 离开本页（切到别的目的地）时 composition 被销毁，返回即重新弹；
+    // 用 rememberSaveable 只为「转屏不重弹」——旋转不该算重新进入。
+    var riskAccepted by rememberSaveable { mutableStateOf(false) }
 
     val captureResult by PairingCaptureService.result.collectAsStateWithLifecycle()
 

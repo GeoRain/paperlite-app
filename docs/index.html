@@ -29,6 +29,7 @@
       <a href="#features" class="nav-link">功能</a>
       <a href="#channels" class="nav-link">通道</a>
       <a href="#usage" class="nav-link">使用</a>
+      <a href="#desktop" class="nav-link">电脑端</a>
       <a href="#notice" class="nav-link">公告</a>
       <a href="#download" class="nav-link">下载</a>
       <a href="#about" class="nav-link">关于</a>
@@ -55,6 +56,7 @@
       <li><a href="#features" class="side-link"><span class="msr" data-icon="widgets"></span>功能</a></li>
       <li><a href="#channels" class="side-link"><span class="msr" data-icon="hub"></span>通道</a></li>
       <li><a href="#usage" class="side-link"><span class="msr" data-icon="terminal"></span>使用</a></li>
+      <li><a href="#desktop" class="side-link"><span class="msr" data-icon="desktop_windows"></span>电脑端</a></li>
       <li><a href="#notice" class="side-link"><span class="msr" data-icon="campaign"></span>公告</a></li>
       <li><a href="#download" class="side-link"><span class="msr" data-icon="download"></span>下载</a></li>
       <li><a href="#about" class="side-link"><span class="msr" data-icon="badge"></span>关于</a></li>
@@ -98,7 +100,7 @@
           <li><span class="msr" data-icon="android"></span>Android 10 及以上</li>
           <li><span class="msr" data-icon="bolt"></span>免电脑直连</li>
           <li><span class="msr" data-icon="lock_open"></span>无账号无上传</li>
-          <li><span class="msr" data-icon="inventory_2"></span>约 47 MB</li>
+          <li><span class="msr" data-icon="inventory_2"></span>约 60 MB</li>
         </ul>
       </div>
 
@@ -110,21 +112,18 @@
             <div class="phone-rail">
               <span class="msr rail-ic is-on" data-icon="home"></span>
               <span class="msr rail-ic" data-icon="storefront"></span>
-              <span class="msr rail-ic" data-icon="install_mobile"></span>
-              <span class="msr rail-ic" data-icon="delete"></span>
+              <span class="msr rail-ic" data-icon="lock_open"></span>
+              <span class="msr rail-ic" data-icon="link"></span>
               <span class="msr rail-ic" data-icon="grid_view"></span>
               <span class="msr rail-ic" data-icon="tune"></span>
-              <span class="msr rail-ic" data-icon="qr_code_scanner"></span>
-              <span class="msr rail-ic" data-icon="campaign"></span>
               <span class="msr rail-ic" data-icon="settings"></span>
-              <span class="msr rail-ic" data-icon="info"></span>
             </div>
             <div class="phone-body">
               <p class="phone-title">概览</p>
               <div class="phone-tiles">
                 <div class="p-tile"><b>5</b><span>通道</span></div>
                 <div class="p-tile"><b>3</b><span>可用</span></div>
-                <div class="p-tile"><b>10</b><span>功能页</span></div>
+                <div class="p-tile"><b>7</b><span>功能页</span></div>
               </div>
               <div class="p-row"><span class="p-pill ok">可用</span>Root 通道</div>
               <div class="p-row"><span class="p-pill ok">可用</span>无线调试会话</div>
@@ -138,7 +137,7 @@
 
     <div class="stat-strip">
       <div class="stat"><b>5</b><span>条高权限通道</span></div>
-      <div class="stat"><b>10</b><span>个独立功能页</span></div>
+      <div class="stat"><b>3</b><span>套高权限身份</span></div>
       <div class="stat"><b>30s</b><span>安装代理看门狗</span></div>
       <div class="stat"><b>0</b><span>个后台常驻进程</span></div>
     </div>
@@ -210,6 +209,25 @@
         <p>深浅色、字号缩放与通道参数。运行日志和上次异常堆栈都能直接查看复制。</p>
       </article>
 
+
+      <article class="f-card">
+        <span class="msr f-ic" data-icon="lock_open"></span>
+        <h3>超级用户</h3>
+        <p>对齐 SukiSU 的管理面：内置 ksud 的一键 Root、模块列表、设备所有者。进门先勾风险确认，每次都弹。</p>
+      </article>
+
+      <article class="f-card">
+        <span class="msr f-ic" data-icon="storefront"></span>
+        <h3>应用商店</h3>
+        <p>解析 F-Droid 镜像索引，按真实应用图标展示，配对完成后可以直接静默安装。第三方源内容未经审查，页面内有明确提示。</p>
+      </article>
+
+      <article class="f-card">
+        <span class="msr f-ic" data-icon="palette"></span>
+        <h3>外观</h3>
+        <p>澎湃与 Material 3 双皮肤即时切换；颜色可从壁纸或系统取（莫奈取色），也能自己选一张图做应用内背景。</p>
+      </article>
+
       <article class="f-card">
         <span class="msr f-ic" data-icon="info"></span>
         <h3>关于</h3>
@@ -232,7 +250,8 @@
         <h3><span class="msr" data-icon="palette"></span>界面</h3>
         <ul class="tick-list">
           <li>小米澎湃 OS 3 配色，纯白底加一层浅灰分区</li>
-          <li>九个独立页面，侧边栏固定常驻</li>
+          <li>莫奈取色：从壁纸或系统取一整套品牌色，也支持自选种子色</li>
+          <li>应用内壁纸背景，应用商店、超级用户等页面带风险提示</li>
           <li>确认弹窗、动作面板、消息条全部带进出场过渡</li>
           <li>深浅色跟随系统，也可手动切换</li>
           <li>字号可调 90% 到 120%</li>
@@ -417,6 +436,75 @@
     </div>
   </section>
 
+  <!-- 电脑端 -->
+  <section class="page" id="desktop">
+    <header class="page-head">
+      <p class="eyebrow"><span class="dot"></span>电脑端</p>
+      <h2>PaperLite PC 辅助软件</h2>
+      <p class="page-desc">
+        电脑只是辅助：提权、静默安装、Shizuku 启动都在手机端的 PaperLite 里完成。
+        PC 端做的是坐在电脑前更顺手的那一部分——连设备、装包、敲命令、看截图。
+      </p>
+    </header>
+
+    <div class="dl-card">
+      <img src="assets/icon-512.png" alt="PaperLite PC" width="96" height="96" class="dl-icon">
+      <div class="dl-main">
+        <h3>PaperLite PC 1.0</h3>
+        <ul class="dl-specs">
+          <li><span>平台</span><b>Windows（macOS / Linux 同源码可跑）</b></li>
+          <li><span>运行时</span><b>Python 3.9+，只用标准库</b></li>
+          <li><span>依赖</span><b>adb（platform-tools），自动探测或放进目录</b></li>
+          <li><span>网络</span><b>只监听 127.0.0.1，不联网、不上报</b></li>
+        </ul>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="https://github.com/GeoRain/paperlite/tree/main/desktop" target="_blank" rel="noopener">
+            <span class="msr" data-icon="download"></span>获取 PaperLite PC
+          </a>
+          <a class="btn btn-ghost" href="https://github.com/GeoRain/paperlite/blob/main/desktop/README.md" target="_blank" rel="noopener">
+            <span class="msr" data-icon="menu_book"></span>使用说明
+          </a>
+        </div>
+        <p class="dl-note">下载整个 desktop 目录后，双击「启动 PaperLite PC.bat」即可；界面会以独立应用窗口打开。</p>
+      </div>
+    </div>
+
+    <div class="dl-grid">
+      <div class="dlg-card">
+        <span class="msr" data-icon="devices"></span>
+        <h4>设备管理</h4>
+        <p>数据线即插即用；无线调试配对、连接、断开一条龙，支持扫描局域网里的 adb 服务。</p>
+        <div class="s-code">adb pair 192.168.1.23:37125</div>
+      </div>
+      <div class="dlg-card">
+        <span class="msr" data-icon="install_mobile"></span>
+        <h4>拖包安装</h4>
+        <p>APK 拖进窗口就能装：adb install -r，可选安装时授予全部权限、允许版本降级。</p>
+        <div class="s-code">adb install -r -g app.apk</div>
+      </div>
+      <div class="dlg-card">
+        <span class="msr" data-icon="terminal"></span>
+        <h4>终端与日志</h4>
+        <p>任意 shell 命令原文回显，带历史记录；logcat 按行数取，不跟流不刷屏。</p>
+        <div class="s-code">adb shell pm list packages -3</div>
+      </div>
+      <div class="dlg-card">
+        <span class="msr" data-icon="screenshot_monitor"></span>
+        <h4>截屏与推送</h4>
+        <p>exec-out 直接回传 PNG，可每 3 秒自动刷新；任意文件一键推到手机 Download。</p>
+        <div class="s-code">adb exec-out screencap -p</div>
+      </div>
+    </div>
+
+    <div class="notice-note">
+      <span class="msr" data-icon="lock"></span>
+      <p>
+        PC 端只是把 adb 包了一层能点的界面：所有命令都在本机执行，
+        服务只监听 127.0.0.1，没有云端、没有账号、没有遥测。
+      </p>
+    </div>
+  </section>
+
   <!-- 公告 -->
   <section class="page" id="notice">
     <header class="page-head">
@@ -475,7 +563,7 @@
   <section class="page" id="download">
     <header class="page-head">
       <p class="eyebrow"><span class="dot"></span>下载</p>
-      <h2>PaperLite v1.0.0</h2>
+      <h2>PaperLite v1.8</h2>
       <p class="page-desc">
         当前提供 Debug 版本，包名 com.codefox.paperlite。
         安装前请确认已开启未知来源安装。
@@ -487,16 +575,16 @@
       <div class="dl-main">
         <h3>PaperLite-debug.apk</h3>
         <ul class="dl-specs">
-          <li><span>版本</span><b>1.0.0 (1)</b></li>
+          <li><span>版本</span><b>1.8 (9)</b></li>
           <li><span>包名</span><b class="mono">com.codefox.paperlite</b></li>
           <li><span>系统要求</span><b>Android 10+</b></li>
-          <li><span>体积</span><b>约 47 MB</b></li>
-          <li><span>架构</span><b>arm64-v8a / armeabi-v7a</b></li>
+          <li><span>体积</span><b>约 60 MB</b></li>
+          <li><span>架构</span><b>arm64-v8a / armeabi-v7a / x86 / x86_64</b></li>
         </ul>
         <a class="btn btn-primary btn-lg" href="PaperLite-debug.apk" download>
           <span class="msr" data-icon="download"></span>下载 APK
         </a>
-        <p class="dl-note">下载的是未签名的调试包，安装时系统会提示未知来源，确认即可。</p>
+        <p class="dl-note">下载的是用调试证书签名的 debug 包，安装时系统会提示未知来源，确认即可。装新版本会覆盖旧版本，数据保留。</p>
       </div>
     </div>
 
@@ -552,11 +640,13 @@
         <div class="ai-block">
           <h3><span class="msr" data-icon="history"></span>版本信息</h3>
           <ul class="kv-list">
-            <li><span>应用版本</span><b>1.0.0 (1)</b></li>
+            <li><span>应用版本</span><b>1.8 (9)</b></li>
             <li><span>包名</span><b class="mono">com.codefox.paperlite</b></li>
             <li><span>最低系统</span><b>Android 10 (API 29)</b></li>
             <li><span>界面框架</span><b>Miuix 0.9.4 + Compose</b></li>
             <li><span>网络依赖</span><b>无，公告可离线</b></li>
+            <li><span>源码</span><b class="mono">github.com/GeoRain/paperlite</b></li>
+            <li><span>电脑端</span><b>PaperLite PC（见「电脑端」页）</b></li>
           </ul>
         </div>
 
@@ -597,6 +687,7 @@
   <a href="#features" class="mnav"><span class="msr" data-icon="widgets"></span>功能</a>
   <a href="#channels" class="mnav"><span class="msr" data-icon="hub"></span>通道</a>
   <a href="#usage" class="mnav"><span class="msr" data-icon="terminal"></span>使用</a>
+  <a href="#desktop" class="mnav"><span class="msr" data-icon="desktop_windows"></span>电脑端</a>
   <a href="#notice" class="mnav"><span class="msr" data-icon="campaign"></span>公告</a>
   <a href="#download" class="mnav"><span class="msr" data-icon="download"></span>下载</a>
   <a href="#about" class="mnav"><span class="msr" data-icon="badge"></span>关于</a>

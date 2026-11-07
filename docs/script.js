@@ -76,7 +76,7 @@
 
   /* ---------------------------------------------------- 页面切换 */
 
-  var SECTIONS = ['overview', 'features', 'channels', 'usage', 'notice', 'download', 'about'];
+  var SECTIONS = ['overview', 'features', 'channels', 'usage', 'desktop', 'notice', 'download', 'about'];
 
   function showSection(id) {
     if (SECTIONS.indexOf(id) < 0) id = 'overview';
